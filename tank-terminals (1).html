@@ -1,0 +1,807 @@
+<!-- APMS Tank Terminal BD Intelligence Matrix v1 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APMS Tank Terminal BD Matrix</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#151820; --surface2:#1c2030;
+    --border:#252b3b; --border2:#2e3650;
+    --accent:#00c8ff; --accent2:#0090c0;
+    --text:#d8dde8; --text-dim:#7a8499; --text-bright:#f0f4ff;
+    --now-bg:#2a0a0a; --now-border:#cc2200; --now-text:#ff5533;
+    --soon-bg:#2a1f00; --soon-border:#cc8800; --soon-text:#ffaa00;
+    --radar-bg:#0a1a0a; --radar-border:#226622; --radar-text:#44cc44;
+    --monitor-bg:#141418; --monitor-border:#333355; --monitor-text:#6688aa;
+    --active:#1a4a2e; --active-border:#2d8c54; --active-text:#4ecb82;
+    --reduced:#3a3010; --reduced-border:#8c7020; --reduced-text:#d4aa3a;
+    --cm:#2a1f3a; --cm-border:#7040a0; --cm-text:#b080e0;
+    --closed:#3a1515; --closed-border:#8c2020; --closed-text:#e05050;
+    --unknown:#1a1f2a; --unknown-border:#3a4050; --unknown-text:#6a7590;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.5;min-height:100vh;}
+
+  header{background:var(--surface);border-bottom:2px solid var(--accent);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .header-left{display:flex;align-items:center;gap:14px;}
+  .apms-badge{background:var(--accent);color:#001820;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;padding:4px 10px;letter-spacing:.12em;text-transform:uppercase;}
+  .header-titles h1{font-size:14px;font-weight:600;color:var(--text-bright);}
+  .header-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:.08em;margin-top:2px;}
+  .header-stats{display:flex;gap:16px;flex-wrap:wrap;}
+  .stat{text-align:center;}
+  .stat-num{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--accent);display:block;}
+  .stat-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;}
+
+  .controls{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .controls label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-right:3px;}
+  .controls select,.controls input{background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;outline:none;}
+  .btn{background:var(--border2);border:1px solid var(--border2);color:var(--text-dim);padding:4px 12px;font-size:10px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.08em;}
+  .btn:hover{background:var(--accent);border-color:var(--accent);color:#001820;}
+  .sep{color:var(--border2);}
+
+  .bd-legend{padding:8px 28px;display:flex;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface);align-items:center;}
+  .bd-legend-title{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;}
+  .bd-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;font-size:10px;font-weight:600;border:1px solid;letter-spacing:.04em;cursor:pointer;transition:opacity .15s;}
+  .bd-chip.inactive{opacity:.3;}
+  .bd-now  {background:var(--now-bg);  border-color:var(--now-border);  color:var(--now-text);}
+  .bd-soon {background:var(--soon-bg); border-color:var(--soon-border); color:var(--soon-text);}
+  .bd-radar{background:var(--radar-bg);border-color:var(--radar-border);color:var(--radar-text);}
+  .bd-monitor{background:var(--monitor-bg);border-color:var(--monitor-border);color:var(--monitor-text);}
+
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:1400px;}
+  thead tr{background:var(--surface2);border-bottom:2px solid var(--border2);}
+  th{padding:8px 10px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);white-space:nowrap;cursor:pointer;border-right:1px solid var(--border);user-select:none;}
+  th:hover{color:var(--accent);}
+  th:last-child{border-right:none;}
+
+  tr.region-row td{padding:10px 16px 5px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.15em;background:var(--bg);}
+  tr.r-europe   td{color:#8090d0;border-left:3px solid #4050a0;}
+  tr.r-samerica td{color:#d08050;border-left:3px solid #804020;}
+  tr.r-namerica td{color:#50c0b0;border-left:3px solid #208070;}
+
+  tr.country-row td{padding:5px 16px 5px 20px;font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;background:var(--surface);border-bottom:1px solid var(--border2);cursor:pointer;user-select:none;}
+  tr.country-row:hover td{background:var(--surface2);color:var(--text);}
+  tr.country-row .ccount{font-weight:400;font-size:10px;margin-left:10px;color:var(--text-dim);}
+
+  tbody tr.data-row{border-bottom:1px solid var(--border);}
+  tbody tr.data-row:hover{background:var(--surface2);}
+  tr.bd-now-row   {border-left:3px solid var(--now-border);}
+  tr.bd-soon-row  {border-left:3px solid var(--soon-border);}
+  tr.bd-radar-row {border-left:3px solid var(--radar-border);}
+  tr.bd-monitor-row{border-left:3px solid var(--monitor-border);}
+
+  td{padding:7px 10px;border-right:1px solid var(--border);vertical-align:top;font-size:12px;}
+  td:last-child{border-right:none;}
+
+  .td-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);}
+  .td-operator{font-weight:700;color:var(--text-bright);font-size:12px;}
+  .td-parent{font-size:11px;color:var(--text-dim);}
+  .td-city{color:var(--text-bright);}
+  .td-state{font-size:10px;color:var(--text-dim);}
+  .td-cap{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  .cap-val{color:var(--accent);font-weight:600;}
+  .cap-unit{color:var(--text-dim);font-size:9px;}
+  .cap-unk{color:var(--text-dim);font-style:italic;font-size:11px;}
+
+  .badge{display:inline-block;padding:2px 6px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid;white-space:nowrap;}
+  .s-active {background:var(--active); border-color:var(--active-border); color:var(--active-text);}
+  .s-reduced{background:var(--reduced);border-color:var(--reduced-border);color:var(--reduced-text);}
+  .s-cm     {background:var(--cm);     border-color:var(--cm-border);     color:var(--cm-text);}
+  .s-closed {background:var(--closed); border-color:var(--closed-border); color:var(--closed-text);}
+  .s-unknown{background:var(--unknown);border-color:var(--unknown-border);color:var(--unknown-text);}
+
+  .tt-port{background:#0e1f35;border-color:#1a4080;color:#4ab0e0;}
+  .tt-mine{background:#1a1008;border-color:#604020;color:#c08040;}
+  .tt-mfg {background:#0a1a10;border-color:#205020;color:#50a050;}
+  .tt-fert{background:#1a1030;border-color:#503080;color:#9060c0;}
+
+  .bd-badge{display:inline-block;padding:3px 7px;font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid;white-space:nowrap;}
+  .bd-badge.bd-now  {background:var(--now-bg);  border-color:var(--now-border);  color:var(--now-text);}
+  .bd-badge.bd-soon {background:var(--soon-bg); border-color:var(--soon-border); color:var(--soon-text);}
+  .bd-badge.bd-radar{background:var(--radar-bg);border-color:var(--radar-border);color:var(--radar-text);}
+  .bd-badge.bd-monitor{background:var(--monitor-bg);border-color:var(--monitor-border);color:var(--monitor-text);}
+
+  .prod-tag{display:inline-block;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:1px 4px;background:#1a1020;color:#c080ff;border:1px solid #3a2050;margin:1px 1px 0 0;white-space:nowrap;}
+  .prod-tag.acid{background:#201010;color:#ff8060;border-color:#502020;}
+  .prod-tag.cyan{background:#102010;color:#60ff80;border-color:#205020;}
+  .prod-tag.solv{background:#101830;color:#60a0ff;border-color:#202860;}
+
+  .insp-block{font-size:11px;line-height:1.5;}
+  .insp-row{display:flex;gap:4px;margin-bottom:2px;}
+  .insp-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;padding-top:1px;min-width:52px;}
+  .insp-val{color:var(--text);}
+  .insp-val.hot{color:var(--now-text);font-weight:600;}
+  .insp-val.warm{color:var(--soon-text);}
+
+  .contact-block{font-size:11px;}
+  .contact{display:flex;gap:5px;margin-bottom:3px;align-items:flex-start;}
+  .contact-role{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;padding-top:1px;min-width:50px;}
+  .contact-name{color:var(--text-bright);font-weight:600;}
+  .contact-li{font-size:9px;color:#0a84ff;text-decoration:none;margin-left:3px;}
+  .no-contact{font-size:10px;color:var(--text-dim);font-style:italic;}
+
+  .dkl-link,.ext-link{font-size:9px;color:var(--text-dim);text-decoration:none;font-family:'IBM Plex Mono',monospace;border-bottom:1px dotted var(--border2);display:block;margin-bottom:2px;}
+  .ext-link{color:#0a84ff;}
+  .ext-link:hover,.dkl-link:hover{color:var(--accent);}
+
+  .footnotes{padding:20px 28px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);}
+  .footnotes h3{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:8px;font-family:'IBM Plex Mono',monospace;}
+  .footnotes ul{padding-left:18px;}
+  .footnotes li{margin-bottom:4px;line-height:1.5;}
+  .footnotes strong{color:var(--text);}
+  tr.empty-row td{padding:40px;text-align:center;color:var(--text-dim);}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border2);}
+</style>
+</head>
+<body>
+<nav style="background:#0a0c10;border-bottom:1px solid #252b3b;padding:8px 28px;display:flex;gap:6px;align-items:center">
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#7a8499;text-transform:uppercase;letter-spacing:.1em;margin-right:8px">APMS Tools:</span>
+  <a href="apms-sap-matrix.html" style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 12px;background:#151820;border:1px solid #252b3b;color:#7a8499;text-decoration:none;letter-spacing:.06em">&#9654; SAP BD Matrix</a>
+  <a href="tank-terminals.html" style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:4px 12px;background:#0a1a10;border:1px solid #205020;color:#44cc44;text-decoration:none;letter-spacing:.06em">&#9654; Tank Terminal Matrix</a>
+</nav>
+
+<header>
+  <div class="header-left">
+    <div class="apms-badge">APMS</div>
+    <div class="header-titles">
+      <h1>Hazardous Chemical Tank Terminal BD Matrix</h1>
+      <div class="header-meta">BULK LIQUID CHEMICAL TERMINALS &middot; H2SO4 &middot; NaCN &middot; HCl &middot; ACETIC ACID &middot; EUROPE / S.AMERICA / N.AMERICA &middot; MARCH 2026</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><span class="stat-num" id="totalCount">0</span><span class="stat-label">Terminals</span></div>
+    <div class="stat"><span class="stat-num" id="nowCount" style="color:var(--now-text)">0</span><span class="stat-label">Reach Out Now</span></div>
+    <div class="stat"><span class="stat-num" id="soonCount" style="color:var(--soon-text)">0</span><span class="stat-label">Engage Soon</span></div>
+    <div class="stat"><span class="stat-num" id="radarCount" style="color:var(--radar-text)">0</span><span class="stat-label">On Radar</span></div>
+    <div class="stat"><span class="stat-num" id="euCount">0</span><span class="stat-label">Europe</span></div>
+    <div class="stat"><span class="stat-num" id="saCount">0</span><span class="stat-label">S. America</span></div>
+    <div class="stat"><span class="stat-num" id="naCount">0</span><span class="stat-label">N. America</span></div>
+  </div>
+</header>
+
+<div class="controls">
+  <label>BD Window</label>
+  <select id="filterBD" onchange="applyFilters()">
+    <option value="">All Windows</option>
+    <option value="now">Reach Out Now</option>
+    <option value="soon">Engage Soon</option>
+    <option value="radar">On Radar</option>
+    <option value="monitor">Monitor</option>
+  </select>
+  <span class="sep">|</span>
+  <label>Region</label>
+  <select id="filterRegion" onchange="applyFilters()">
+    <option value="">All Regions</option>
+    <option value="Europe">Europe</option>
+    <option value="South America">South America</option>
+    <option value="North America">North America</option>
+  </select>
+  <span class="sep">|</span>
+  <label>Type</label>
+  <select id="filterType" onchange="applyFilters()">
+    <option value="">All Types</option>
+    <option value="Port Terminal">Port Terminal</option>
+    <option value="Mine Site Storage">Mine Site Storage</option>
+    <option value="Manufacturer Storage">Manufacturer Storage</option>
+    <option value="Fertiliser Storage">Fertiliser Storage</option>
+  </select>
+  <span class="sep">|</span>
+  <label>Search</label>
+  <input type="text" id="searchBox" placeholder="Operator, chemical, location..." oninput="applyFilters()" style="width:180px">
+  <button class="btn" onclick="clearFilters()">Clear</button>
+</div>
+
+<div class="bd-legend">
+  <span class="bd-legend-title">BD Window:</span>
+  <span class="bd-chip bd-now"   onclick="toggleBDFilter('now')"   id="chip-now">&#128308; Reach Out Now &lt;18mo</span>
+  <span class="bd-chip bd-soon"  onclick="toggleBDFilter('soon')"  id="chip-soon">&#128992; Engage Soon 18-36mo</span>
+  <span class="bd-chip bd-radar" onclick="toggleBDFilter('radar')" id="chip-radar">&#128994; On Radar 36-60mo</span>
+  <span class="bd-chip bd-monitor" onclick="toggleBDFilter('monitor')" id="chip-monitor">&#9899; Monitor 60mo+</span>
+  <span style="margin-left:12px;font-size:9px;color:var(--text-dim);">TYPE: </span>
+  <span class="badge tt-port" style="font-size:9px">Port Terminal</span>
+  <span class="badge tt-mine" style="font-size:9px">Mine Site</span>
+  <span class="badge tt-mfg"  style="font-size:9px">Manufacturer</span>
+  <span class="badge tt-fert" style="font-size:9px">Fertiliser</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th onclick="sortBy('id')">#</th>
+        <th onclick="sortBy('bd_window')">BD Window</th>
+        <th onclick="sortBy('operator')">Operator / Owner</th>
+        <th onclick="sortBy('terminal_name')">Terminal / Site</th>
+        <th onclick="sortBy('city')">Location</th>
+        <th onclick="sortBy('type')">Type</th>
+        <th>Products Stored</th>
+        <th onclick="sortBy('tank_count')">Tanks</th>
+        <th onclick="sortBy('capacity_m3')">Capacity</th>
+        <th onclick="sortBy('status')">Status</th>
+        <th>Inspection / Cleaning Intel</th>
+        <th>Key Contacts</th>
+        <th>Links</th>
+      </tr>
+    </thead>
+    <tbody id="matrixBody">
+      <tr class="empty-row"><td colspan="13">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footnotes">
+  <h3>Notes &amp; Data Caveats</h3>
+  <ul>
+    <li><strong>BD Window</strong> is calculated from March 2026 based on the sooner of: next API 653 internal inspection (5-10 year cycle) or next cleaning turnaround (2-4 year cycle). Where no confirmed date is available, last known inspection/construction date plus typical cycle is used. <strong>Verify before outreach.</strong></li>
+    <li><strong>API 653</strong> governs aboveground steel storage tanks. Internal inspection frequency is risk-based (RBI): typically 5 years for highly corrosive products (concentrated H2SO4, HCl), up to 10 years for less corrosive products with strong RBI data. New tanks (post-construction) require first internal inspection within 10 years.</li>
+    <li><strong>Hazardous chemical tanks</strong> (Class 8 corrosives, Class 6.1 toxics) require specialist contractors with HazMat entry certification, neutralisation capability, and confined space competency. This is APMS's core value proposition in this market.</li>
+    <li><strong>Products key:</strong> <span class="prod-tag acid">H2SO4</span> Sulphuric Acid &nbsp; <span class="prod-tag acid">HCl</span> Hydrochloric Acid &nbsp; <span class="prod-tag cyan">NaCN</span> Sodium Cyanide &nbsp; <span class="prod-tag solv">AcOH</span> Acetic Acid &nbsp; <span class="prod-tag acid">H3PO4</span> Phosphoric Acid</li>
+    <li><strong>Contacts</strong> are from publicly available sources (company websites, LinkedIn, press releases). Verify before outreach.</li>
+    <li><strong>Data sources:</strong> Company websites, Odfjell Terminals, Vopak, Stolthaven, port authority databases, LinkedIn, industry press. This matrix is a starting point &mdash; many terminals have limited public data and require direct prospecting.</li>
+  </ul>
+</div>
+
+<script>
+const TERMINALS = [
+  // ===================== EUROPE =====================
+  // --- BELGIUM ---
+  {
+    id:1, operator:"Vopak Terminal ACS", parent:"Royal Vopak NV",
+    terminal_name:"Vopak Terminal ACS (Antwerp Chemicals & Solvents)", city:"Antwerp", state:"Port of Antwerp", country:"Belgium", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4","HCl","AcOH","Solvents","Acetyls","HACCP"],
+    tank_count:null, capacity_m3:null, cap_note:"Large stainless steel tank farm",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (RBI, corrosives)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Dedicated acid/chemical terminal. Hub for acetyls and acids. Stainless steel tanks. Next inspection window unknown - requires direct prospecting.",
+    contacts:[
+      {role:"Terminal Mgr", name:"Via Vopak Belgium management", li:null},
+      {role:"Commercial", name:"Via Vopak ACS commercial team", li:null}
+    ],
+    website:"https://www.vopak.com/terminals/vopak-terminal-acs-antwerp"
+  },
+  {
+    id:2, operator:"Advario Stolthaven Antwerp NV", parent:"Stolt-Nielsen / Advario",
+    terminal_name:"Advario Stolthaven Antwerp", city:"Antwerp", state:"Port of Antwerp", country:"Belgium", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Oil products","Gases","Bio-based"],
+    tank_count:null, capacity_m3:null, cap_note:"Large multi-product terminal",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Joint venture. Stainless steel + carbon steel tanks for chemicals and acids. Requires direct prospecting for inspection schedule.",
+    contacts:[
+      {role:"Terminal Mgr", name:"Via Stolthaven/Advario Antwerp", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/terminal-network/advario-stolthaven-antwerp-nv/"
+  },
+  // --- NETHERLANDS ---
+  {
+    id:3, operator:"Stolthaven Moerdijk", parent:"Stolt-Nielsen Limited",
+    terminal_name:"Stolthaven Moerdijk", city:"Moerdijk", state:"North Brabant", country:"Netherlands", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Isocyanates","Solvents","Base oils","Biofuels"],
+    tank_count:37, capacity_m3:31720, cap_note:"37 tanks, 31,720 m3 total",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Acquired by Stolthaven 2012. Between Antwerp and Rotterdam, lock-free. Specialises in chemicals including isocyanates and solvents. PGS-15 hazardous goods warehousing on site.",
+    contacts:[
+      {role:"Acting GM", name:"Marco Dalmeijer (Acting General Manager)", li:null},
+      {role:"Commercial", name:"Pim van den Doel (Commercial & BD Manager)", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/terminal-network/stolthaven-moerdijk/"
+  },
+  {
+    id:4, operator:"Liquin Rotterdam", parent:"Liquin BV (private)",
+    terminal_name:"Liquin Terminal Botlek (3 sites)", city:"Rotterdam", state:"Port of Rotterdam (Botlek)", country:"Netherlands", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4","HCl","Chemicals","Biodiesel","Solvents"],
+    tank_count:null, capacity_m3:null, cap_note:"Largest chemical storage hub in ARA region",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (corrosives)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Claims to be largest chemical liquid storage hub in ARA region. Three integrated Botlek terminals. Deep-sea vessel access. Sulphuric acid storage confirmed. High-value target.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Liquin Rotterdam management", li:null},
+      {role:"Commercial", name:"Via Liquin commercial team", li:null}
+    ],
+    website:"https://liquin.com/"
+  },
+  {
+    id:5, operator:"Vopak Terminal Botlek / TTR / Chemiehaven", parent:"Royal Vopak NV",
+    terminal_name:"Vopak Rotterdam Chemical Terminals", city:"Rotterdam", state:"Port of Rotterdam", country:"Netherlands", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Solvents","Petroleum products"],
+    tank_count:null, capacity_m3:null, cap_note:"Multiple terminals, >2.5M m3 total ARA region",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Vopak sold Amsterdam and Hamburg terminals in 2019 but retains major Rotterdam presence. Six Netherlands terminals in ARA region. Largest independent terminal operator globally.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Vopak Netherlands regional management", li:null}
+    ],
+    website:"https://www.vopak.com/our-terminals"
+  },
+  // --- UK ---
+  {
+    id:6, operator:"Stolthaven Dagenham", parent:"Stolt-Nielsen Limited",
+    terminal_name:"Stolthaven Dagenham", city:"London (Dagenham)", state:"Essex", country:"United Kingdom", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Bitumen","UCO","Biofuel feedstocks"],
+    tank_count:null, capacity_m3:null, cap_note:"Unknown",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Stolt-Nielsen wholly-owned UK terminal. Trafigura bitumen JV launched 2015. Now also stores UCO/biofuels. Acid storage capability.",
+    contacts:[
+      {role:"Terminal Mgr", name:"Via Stolthaven UK management", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/"
+  },
+  // --- GERMANY ---
+  {
+    id:7, operator:"BASF Ludwigshafen (H2SO4 storage)", parent:"BASF SE",
+    terminal_name:"BASF Ludwigshafen Verbund Site", city:"Ludwigshafen", state:"Rhineland-Palatinate", country:"Germany", region:"Europe",
+    type:"Manufacturer Storage", type_class:"tt-mfg",
+    products:["H2SO4","Oleum","Sulphur","Regen acid","Semiconductor-grade H2SO4"],
+    tank_count:null, capacity_m3:null, cap_note:"Multiple tanks across world's largest integrated chemical site",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years per tank (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"soon",
+    bd_notes:"New ultrapure H2SO4 plant for semiconductor industry announced April 2025 - will require new acid storage tanks (inspection/cleaning contracts from commissioning). Multiple existing H2SO4 tanks across Verbund. World's largest integrated chemical complex. High-value target for new construction and maintenance.",
+    contacts:[
+      {role:"Site Mgr", name:"Via BASF site management Ludwigshafen", li:null},
+      {role:"Procurement", name:"BASF SE global procurement", li:null}
+    ],
+    website:"https://www.basf.com/global/en/who-we-are/organization/locations/europe/german-sites/ludwigshafen.html"
+  },
+  // --- SPAIN ---
+  {
+    id:8, operator:"Atlantic Copper Huelva (H2SO4 storage)", parent:"Freeport-McMoRan Inc.",
+    terminal_name:"Huelva Metallurgical Complex - Acid Storage", city:"Huelva", state:"Andalusia", country:"Spain", region:"Europe",
+    type:"Manufacturer Storage", type_class:"tt-mfg",
+    products:["H2SO4"],
+    tank_count:null, capacity_m3:null, cap_note:"12,000 MT storage tank + rail + ship loading. ~910,000 MTPA H2SO4 output",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"~2026-2027 (est.)", inspection_freq:"5-7 years (corrosive service)", last_clean:"Unknown", next_clean:"~2026 (est.)", clean_freq:"2-3 years",
+    bd_window:"now",
+    bd_notes:"Produces ~910,000 MTPA H2SO4 (2025). CirCular project commissioning Q2-Q3 2026 will bring new acid tanks into service. 12,000 MT storage tank + railway + 3 private ship loading wharfs. Existing acid storage tanks approaching inspection cycle. CEO Macarena Gutierrez.",
+    contacts:[
+      {role:"CEO", name:"Macarena Gutierrez", li:null},
+      {role:"Comms", name:"Marta Cerati (Director Comms & ESG)", li:null},
+      {role:"Procurement", name:"Via Atlantic Copper HQ Huelva", li:null}
+    ],
+    website:"https://atlantic-copper.es/en/"
+  },
+  // --- NORWAY ---
+  {
+    id:9, operator:"Interacid / Vopak Chile (H2SO4 logistics Norway)", parent:"Sumitomo Corporation (Interacid)",
+    terminal_name:"Interacid Sulphuric Acid Terminal Network", city:"Multiple (Bergen / Oslo area)", state:"Norway", country:"Norway", region:"Europe",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4"],
+    tank_count:19, capacity_m3:330000, cap_note:"19 tanks, ~330,000 tonnes H2SO4 capacity (post-acquisition)",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Interacid (Sumitomo subsidiary) is the dominant H2SO4 logistics operator in the region. Acquired LPD terminal Feb 2023, reaching 19 tanks / 330,000 tonne capacity. Handles >3.5M tonnes H2SO4 annually. Major inspection opportunity.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Interacid / Sumitomo Norway", li:null}
+    ],
+    website:null
+  },
+
+  // ===================== SOUTH AMERICA =====================
+  // --- CHILE ---
+  {
+    id:10, operator:"Terquim (Odfjell Terminals SA) - San Antonio", parent:"Odfjell Terminals South America (OTSA)",
+    terminal_name:"Terquim San Antonio Terminal", city:"San Antonio", state:"Valparaiso Region", country:"Chile", region:"South America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4","Chemicals","Lubricants","Vegoils","MDI"],
+    tank_count:26, capacity_m3:34200, cap_note:"26 tanks, 34,200 m3 total (150-5,400 m3 each)",
+    status:"Active",
+    last_inspection:"~2019 (est. - built 1974, major works periodic)", next_inspection:"~2024-2026 (est.)", inspection_freq:"5-7 years (H2SO4 corrosive service)", last_clean:"~2022 (est.)", next_clean:"~2024-2026 (est.)", clean_freq:"2-3 years",
+    bd_window:"now",
+    bd_notes:"South American Pacific Coast's FIRST public bulk liquid terminal (1974). 26 CS tanks including dedicated H2SO4 terminal. San Antonio is Chile's largest port, 100km from Santiago. CFO: Hernan Pacheco A. Inspection/cleaning cycle likely overdue.",
+    contacts:[
+      {role:"CFO/Admin", name:"Hernan Pacheco A. (CFO & Admin Manager)", li:null},
+      {role:"Site Mgr", name:"Via Terquim San Antonio terminal management", li:null}
+    ],
+    website:"https://odfjellterminalssouthamerica.com/terminal-san-antonio-en.html"
+  },
+  {
+    id:11, operator:"Terquim (Odfjell Terminals SA) - Mejillones", parent:"Odfjell Terminals South America (OTSA)",
+    terminal_name:"Terquim Mejillones Terminal", city:"Mejillones", state:"Antofagasta Region", country:"Chile", region:"South America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4","Mining chemicals"],
+    tank_count:null, capacity_m3:null, cap_note:"H2SO4 project commenced 2024 (LinkedIn confirmed)",
+    status:"Active",
+    last_inspection:"N/A (new 2024)", next_inspection:"~2029-2031 (first inspection)", inspection_freq:"5-7 years from commissioning", last_clean:"N/A (new)", next_clean:"~2026-2027 (first clean)", clean_freq:"2-3 years",
+    bd_window:"soon",
+    bd_notes:"NEW H2SO4 terminal at Port of Mejillones - commenced operations Q1 2024. Mejillones handles the majority of Chile's acid imports for the copper mining sector. New tanks = first cleaning cycle due ~2026-27. Strong APMS entry opportunity.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Terquim Mejillones terminal", li:null},
+      {role:"Parent", name:"Odfjell Terminals South America (OTSA)", li:null}
+    ],
+    website:"https://odfjellterminalssouthamerica.com/"
+  },
+  {
+    id:12, operator:"Vopak-Oxiquim Terminal Mejillones SA", parent:"Royal Vopak NV + Oxiquim SA (JV)",
+    terminal_name:"Vopak Oxiquim Mejillones", city:"Mejillones", state:"Antofagasta Region", country:"Chile", region:"South America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["H2SO4","Bulk liquid chemicals"],
+    tank_count:null, capacity_m3:null, cap_note:"Phase 1 constructed from 2009",
+    status:"Active",
+    last_inspection:"~2019-2020 (est. - Phase 1 built 2009-2011)", next_inspection:"~2024-2026 (est.)", inspection_freq:"5-7 years (H2SO4)", last_clean:"~2022 (est.)", next_clean:"~2025-2026 (est.)", clean_freq:"2-3 years",
+    bd_window:"now",
+    bd_notes:"JV between Vopak and Oxiquim. Phase 1 construction from 2009. Mejillones is THE acid import hub for northern Chile copper mines. Inspection and cleaning contracts highly likely to be due. Oxiquim is Chile's leading chemical distributor.",
+    contacts:[
+      {role:"JV Mgr", name:"Via Vopak Chile / Oxiquim management", li:null},
+      {role:"Parent", name:"Oxiquim SA - Santiago HQ", li:null}
+    ],
+    website:"https://www.vopak.com/"
+  },
+  {
+    id:13, operator:"Codelco - Chuquicamata Mine Site Acid Storage", parent:"Codelco (Chilean State)",
+    terminal_name:"Chuquicamata / Calama Acid Storage Tanks", city:"Calama", state:"Antofagasta Region", country:"Chile", region:"South America",
+    type:"Mine Site Storage", type_class:"tt-mine",
+    products:["H2SO4"],
+    tank_count:null, capacity_m3:null, cap_note:"Large-scale on-site storage for SX-EW operations",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (est.)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Codelco Norte consumes enormous volumes of H2SO4 for copper SX-EW leaching. On-site acid storage tanks at Chuquicamata and Radomiro Tomic. Acid imported via Port of Angamos (Codelco's dedicated port). Major opportunity if APMS can get on vendor list.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Codelco Norte operations management", li:null},
+      {role:"Procurement", name:"Codelco procurement - Calama / Santiago", li:null}
+    ],
+    website:"https://www.codelco.com/"
+  },
+  {
+    id:14, operator:"Minera Escondida (BHP) - Port Coloso Acid Storage", parent:"BHP Billiton plc (57.5%)",
+    terminal_name:"Coloso Port & Mine Acid Storage", city:"Antofagasta (Coloso)", state:"Antofagasta Region", country:"Chile", region:"South America",
+    type:"Mine Site Storage", type_class:"tt-mine",
+    products:["H2SO4"],
+    tank_count:null, capacity_m3:null, cap_note:"Private port for Escondida; large-scale acid storage",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (est.)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"BHP Escondida is world's largest copper mine. Coloso is its private port exclusively for Escondida. Acid imported for SX-EW. Potential for APMS given BHP relationship (Olympic Dam client).",
+    contacts:[
+      {role:"Site Mgr", name:"Via Minera Escondida operations Antofagasta", li:null},
+      {role:"Procurement", name:"BHP / Escondida supply chain Santiago", li:null}
+    ],
+    website:"https://www.bhp.com/our-operations/mines/escondida"
+  },
+  {
+    id:15, operator:"Southern Copper / SPCC - Ilo Port Acid Storage", parent:"Grupo Mexico SAB de CV",
+    terminal_name:"Ilo Port Acid & Chemical Storage", city:"Ilo", state:"Moquegua", country:"Peru", region:"South America",
+    type:"Mine Site Storage", type_class:"tt-mine",
+    products:["H2SO4"],
+    tank_count:null, capacity_m3:null, cap_note:"On-site storage adjacent to Ilo smelter/refinery",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (est.)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"Associated with Southern Copper Ilo smelter (in SAP matrix). H2SO4 produced on-site and stored/shipped. Large acid tank farm at port.",
+    contacts:[
+      {role:"Site Mgr", name:"Via Southern Copper Ilo operations", li:null}
+    ],
+    website:null
+  },
+  {
+    id:16, operator:"Odfjell Terminals SA - Callao (Peru)", parent:"Odfjell Terminals South America (OTSA)",
+    terminal_name:"OTSA Callao Terminal", city:"Callao", state:"Lima Region", country:"Peru", region:"South America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Bulk liquids"],
+    tank_count:null, capacity_m3:null, cap_note:"Unknown - part of OTSA network",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-7 years (est.)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-3 years",
+    bd_window:"monitor",
+    bd_notes:"OTSA's Peru terminal at Port of Callao. Services the Lima industrial region and supplies acid to inland mining operations. Part of OTSA's 10-terminal South American network.",
+    contacts:[
+      {role:"Site Mgr", name:"Calle Contralmirante I. Mariatequi No.465, Callao", li:null},
+      {role:"Parent", name:"Odfjell Terminals South America (OTSA)", li:null}
+    ],
+    website:"https://odfjellterminalssouthamerica.com/"
+  },
+  {
+    id:17, operator:"Stolthaven Santos", parent:"Stolt-Nielsen Limited",
+    terminal_name:"Stolthaven Santos", city:"Santos", state:"Sao Paulo", country:"Brazil", region:"South America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Clean petroleum products","Biofuels"],
+    tank_count:null, capacity_m3:null, cap_note:"Unknown - Stolt wholly-owned",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (RBI)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Stolt-Nielsen's wholly-owned Santos terminal - one of Brazil's largest chemical terminals at South America's busiest port. Part of the broader Stolt South America network.",
+    contacts:[
+      {role:"Site Mgr", name:"R. Augusto Scaraboto 215, Alemoa, Santos SP", li:null},
+      {role:"Parent", name:"Stolt-Nielsen / Stolthaven Terminals global", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/terminal-network/"
+  },
+
+  // ===================== NORTH AMERICA =====================
+  // --- USA ---
+  {
+    id:18, operator:"Stolthaven New Orleans", parent:"Stolt-Nielsen Limited",
+    terminal_name:"Stolthaven New Orleans (Braithwaite LA)", city:"Braithwaite", state:"Louisiana", country:"USA", region:"North America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Hazardous liquids"],
+    tank_count:null, capacity_m3:null, cap_note:"Unknown",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (API 653)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Stolthaven offers tank cleaning services at New Orleans and Houston for third parties. Hurricane Isaac (2012) caused hazardous material leak - underwent significant remediation and upgrades. Note: North America is lower priority due to competitive landscape.",
+    contacts:[
+      {role:"Terminal Mgr", name:"Via Stolthaven New Orleans", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/"
+  },
+  {
+    id:19, operator:"Stolthaven Houston", parent:"Stolt-Nielsen Limited",
+    terminal_name:"Stolthaven Houston", city:"Houston", state:"Texas", country:"USA", region:"North America",
+    type:"Port Terminal", type_class:"tt-port",
+    products:["Chemicals","Acids","Specialty chemicals"],
+    tank_count:null, capacity_m3:null, cap_note:"Unknown",
+    status:"Active",
+    last_inspection:"Unknown", next_inspection:"Unknown", inspection_freq:"5-10 years (API 653)", last_clean:"Unknown", next_clean:"Unknown", clean_freq:"2-4 years",
+    bd_window:"monitor",
+    bd_notes:"Stolthaven wholly-owned Houston terminal. Offers third-party tank cleaning services including advanced cleaning with vapour control for hazardous residues. Note: competitive landscape - brother's market.",
+    contacts:[
+      {role:"Terminal Mgr", name:"Via Stolthaven Houston management", li:null}
+    ],
+    website:"https://www.stolt-nielsen.com/our-businesses/stolthaven-terminals/"
+  }
+];
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function bdClass(w) {
+  if (w === "now")    return "bd-now";
+  if (w === "soon")   return "bd-soon";
+  if (w === "radar")  return "bd-radar";
+  return "bd-monitor";
+}
+function bdLabel(w) {
+  if (w === "now")    return "\u25cf Reach Out Now";
+  if (w === "soon")   return "\u25cf Engage Soon";
+  if (w === "radar")  return "\u25cf On Radar";
+  return "\u25cb Monitor";
+}
+function sClass(s) {
+  if (s === "Active")  return "s-active";
+  if (s === "Reduced") return "s-reduced";
+  if (s === "C&M")     return "s-cm";
+  if (s === "Closed")  return "s-closed";
+  return "s-unknown";
+}
+function capHTML(t) {
+  var parts = [];
+  if (t.tank_count) parts.push("<span class=\"cap-val\">" + t.tank_count + "</span><span class=\"cap-unit\"> tanks</span>");
+  if (t.capacity_m3) parts.push("<span class=\"cap-val\">" + t.capacity_m3.toLocaleString() + "</span><span class=\"cap-unit\"> m\u00b3</span>");
+  if (t.cap_note && !t.tank_count && !t.capacity_m3) return "<span class=\"cap-unk\">" + t.cap_note + "</span>";
+  if (t.cap_note) return parts.join("<br>") + "<div style=\"font-size:9px;color:var(--text-dim);margin-top:1px\">" + t.cap_note + "</div>";
+  return parts.length ? parts.join("<br>") : "<span class=\"cap-unk\">Unknown</span>";
+}
+function prodsHTML(prods) {
+  if (!prods || !prods.length) return "";
+  var out = "";
+  for (var i = 0; i < prods.length; i++) {
+    var p = prods[i];
+    var cls = "prod-tag";
+    if (p === "H2SO4" || p === "HCl" || p === "HNO3" || p === "H3PO4" || p === "Oleum") cls += " acid";
+    else if (p === "NaCN" || p === "KCN" || p === "HCN") cls += " cyan";
+    else if (p === "AcOH" || p === "Solvents" || p === "Acetyls") cls += " solv";
+    out += "<span class=\"" + cls + "\">" + p + "</span>";
+  }
+  return out;
+}
+function inspHTML(t) {
+  var h = "<div class=\"insp-block\">";
+  var nextInspCls = (t.bd_window === "now") ? " hot" : (t.bd_window === "soon") ? " warm" : "";
+  h += "<div class=\"insp-row\"><span class=\"insp-label\">Last Insp</span><span class=\"insp-val\">" + (t.last_inspection || "\u2014") + "</span></div>";
+  h += "<div class=\"insp-row\"><span class=\"insp-label\">Next Insp</span><span class=\"insp-val" + nextInspCls + "\">" + (t.next_inspection || "Unknown") + "</span></div>";
+  h += "<div class=\"insp-row\"><span class=\"insp-label\">Insp Freq</span><span class=\"insp-val\">" + (t.inspection_freq || "\u2014") + "</span></div>";
+  h += "<div class=\"insp-row\"><span class=\"insp-label\">Last Clean</span><span class=\"insp-val\">" + (t.last_clean || "\u2014") + "</span></div>";
+  h += "<div class=\"insp-row\"><span class=\"insp-label\">Next Clean</span><span class=\"insp-val" + nextInspCls + "\">" + (t.next_clean || "Unknown") + "</span></div>";
+  if (t.bd_notes) h += "<div style=\"font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.4\">" + t.bd_notes + "</div>";
+  h += "</div>";
+  return h;
+}
+function contactsHTML(t) {
+  if (!t.contacts || !t.contacts.length) return "<span class=\"no-contact\">Not listed</span>";
+  var h = "<div class=\"contact-block\">";
+  for (var i = 0; i < t.contacts.length; i++) {
+    var c = t.contacts[i];
+    if (!c.name || c.name.indexOf("Via ") === 0) {
+      h += "<div class=\"contact\"><span class=\"contact-role\">" + c.role + "</span><span class=\"no-contact\">" + c.name + "</span></div>";
+    } else {
+      h += "<div class=\"contact\"><span class=\"contact-role\">" + c.role + "</span><span class=\"contact-name\">" + c.name;
+      if (c.li) h += "<a class=\"contact-li\" href=\"" + c.li + "\" target=\"_blank\" rel=\"noopener\"> [Li]</a>";
+      h += "</span></div>";
+    }
+  }
+  h += "</div>";
+  return h;
+}
+function slugify(s) {
+  return s.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var hiddenCountries = {};
+var sortCol = null, sortDir = 1;
+var visibleData = TERMINALS.slice();
+var activeBDFilter = null;
+
+// ── BD CHIP TOGGLE ────────────────────────────────────────────────────────────
+function toggleBDFilter(w) {
+  activeBDFilter = (activeBDFilter === w) ? null : w;
+  var chips = ["now","soon","radar","monitor"];
+  for (var i = 0; i < chips.length; i++) {
+    var el = document.getElementById("chip-" + chips[i]);
+    if (el) el.className = "bd-chip bd-" + chips[i] + (activeBDFilter && activeBDFilter !== chips[i] ? " inactive" : "");
+  }
+  document.getElementById("filterBD").value = activeBDFilter || "";
+  applyFilters();
+}
+
+// ── DELEGATED CLICK ───────────────────────────────────────────────────────────
+document.getElementById("matrixBody").addEventListener("click", function(e) {
+  var row = e.target.closest("tr.country-row");
+  if (!row) return;
+  var slug = row.getAttribute("data-slug");
+  if (slug) { hiddenCountries[slug] = !hiddenCountries[slug]; render(visibleData); }
+});
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(data) {
+  var tbody = document.getElementById("matrixBody");
+  var rows = "";
+  var regions = ["Europe","South America","North America"];
+  var rCls = {"Europe":"r-europe","South America":"r-samerica","North America":"r-namerica"};
+
+  for (var ri = 0; ri < regions.length; ri++) {
+    var region = regions[ri];
+    var items = [];
+    for (var i = 0; i < data.length; i++) { if (data[i].region === region) items.push(data[i]); }
+    if (!items.length) continue;
+
+    rows += "<tr class=\"region-row " + rCls[region] + "\"><td colspan=\"13\">"
+          + region.toUpperCase() + " \u2014 " + items.length + " terminal" + (items.length !== 1 ? "s" : "") + "</td></tr>";
+
+    var seen = {}, countries = [];
+    for (var i2 = 0; i2 < items.length; i2++) {
+      var c = items[i2].country;
+      if (!seen[c]) { seen[c] = true; countries.push(c); }
+    }
+    countries.sort();
+
+    for (var ci = 0; ci < countries.length; ci++) {
+      var country = countries[ci];
+      var cp = [];
+      for (var i3 = 0; i3 < items.length; i3++) { if (items[i3].country === country) cp.push(items[i3]); }
+      var slug = slugify(country);
+      var hidden = hiddenCountries[slug];
+
+      rows += "<tr class=\"country-row\" data-slug=\"" + slug + "\"><td colspan=\"13\">"
+            + country + "<span class=\"ccount\">" + cp.length + " terminal" + (cp.length !== 1 ? "s" : "") + "</span>"
+            + (hidden ? " \u25ba" : " \u25bc") + "</td></tr>";
+
+      if (hidden) continue;
+
+      for (var di = 0; di < cp.length; di++) {
+        var t = cp[di];
+        var bdc = bdClass(t.bd_window);
+        var linkCell = t.website
+          ? "<a class=\"ext-link\" href=\"" + t.website + "\" target=\"_blank\" rel=\"noopener\">Website \u2197</a>"
+          : "<span style=\"color:var(--border2);font-size:9px\">\u2014</span>";
+
+        rows += "<tr class=\"data-row " + bdc + "-row\">"
+          + "<td class=\"td-id\">" + t.id + "</td>"
+          + "<td><span class=\"bd-badge " + bdc + "\">" + bdLabel(t.bd_window) + "</span></td>"
+          + "<td><div class=\"td-operator\">" + t.operator + "</div><div class=\"td-parent\">" + t.parent + "</div></td>"
+          + "<td>" + (t.terminal_name || "\u2014") + "</td>"
+          + "<td><div class=\"td-city\">" + t.city + "</div><div class=\"td-state\">" + t.state + "</div></td>"
+          + "<td><span class=\"badge " + t.type_class + "\">" + t.type + "</span></td>"
+          + "<td>" + prodsHTML(t.products) + "</td>"
+          + "<td class=\"td-cap\">" + capHTML(t) + "</td>"
+          + "<td><span class=\"badge " + sClass(t.status) + "\">" + t.status + "</span></td>"
+          + "<td>" + inspHTML(t) + "</td>"
+          + "<td>" + contactsHTML(t) + "</td>"
+          + "<td>" + linkCell + "</td>"
+          + "</tr>";
+      }
+    }
+  }
+
+  if (!rows) rows = "<tr class=\"empty-row\"><td colspan=\"13\">No terminals match current filters.</td></tr>";
+  tbody.innerHTML = rows;
+  updateStats(data);
+}
+
+function updateStats(data) {
+  var tot = 0, nowC = 0, soonC = 0, radarC = 0, eu = 0, sa = 0, na = 0;
+  for (var i = 0; i < data.length; i++) {
+    var t = data[i]; tot++;
+    if (t.bd_window === "now")   nowC++;
+    if (t.bd_window === "soon")  soonC++;
+    if (t.bd_window === "radar") radarC++;
+    if (t.region === "Europe")        eu++;
+    if (t.region === "South America") sa++;
+    if (t.region === "North America") na++;
+  }
+  document.getElementById("totalCount").textContent  = tot;
+  document.getElementById("nowCount").textContent    = nowC;
+  document.getElementById("soonCount").textContent   = soonC;
+  document.getElementById("radarCount").textContent  = radarC;
+  document.getElementById("euCount").textContent     = eu;
+  document.getElementById("saCount").textContent     = sa;
+  document.getElementById("naCount").textContent     = na;
+}
+
+function applyFilters() {
+  var bd     = document.getElementById("filterBD").value;
+  var region = document.getElementById("filterRegion").value;
+  var type   = document.getElementById("filterType").value;
+  var search = document.getElementById("searchBox").value.toLowerCase();
+  activeBDFilter = bd || null;
+  visibleData = [];
+  for (var i = 0; i < TERMINALS.length; i++) {
+    var t = TERMINALS[i];
+    if (bd     && t.bd_window !== bd)   continue;
+    if (region && t.region    !== region) continue;
+    if (type   && t.type      !== type)   continue;
+    if (search) {
+      var hay = [t.operator, t.parent, t.terminal_name, t.city, t.country,
+                 t.state, t.bd_notes, t.cap_note, (t.products||[]).join(" ")].join(" ").toLowerCase();
+      if (hay.indexOf(search) === -1) continue;
+    }
+    visibleData.push(t);
+  }
+  if (sortCol) doSort();
+  render(visibleData);
+}
+
+function clearFilters() {
+  document.getElementById("filterBD").value     = "";
+  document.getElementById("filterRegion").value = "";
+  document.getElementById("filterType").value   = "";
+  document.getElementById("searchBox").value    = "";
+  activeBDFilter = null; sortCol = null; sortDir = 1;
+  var chips = ["now","soon","radar","monitor"];
+  for (var i = 0; i < chips.length; i++) {
+    var el = document.getElementById("chip-" + chips[i]);
+    if (el) el.className = "bd-chip bd-" + chips[i];
+  }
+  visibleData = TERMINALS.slice();
+  render(visibleData);
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
+  doSort(); render(visibleData);
+}
+function doSort() {
+  visibleData.sort(function(a,b) {
+    var va = a[sortCol], vb = b[sortCol];
+    if (va === null || va === undefined) va = -Infinity;
+    if (vb === null || vb === undefined) vb = -Infinity;
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    return va < vb ? -sortDir : va > vb ? sortDir : 0;
+  });
+}
+
+render(TERMINALS);
+</script>
+</body>
+</html>
