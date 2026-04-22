@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APMS SAP BD Intelligence Matrix</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#151820; --surface2:#1c2030;
+    --border:#252b3b; --border2:#2e3650;
+    --accent:#f0a500; --accent2:#e07b00;
+    --text:#d8dde8; --text-dim:#7a8499; --text-bright:#f0f4ff;
+    --now-bg:#2a0a0a; --now-border:#cc2200; --now-text:#ff5533;
+    --soon-bg:#2a1f00; --soon-border:#cc8800; --soon-text:#ffaa00;
+    --radar-bg:#0a1a0a; --radar-border:#226622; --radar-text:#44cc44;
+    --monitor-bg:#141418; --monitor-border:#333355; --monitor-text:#6688aa;
+    --active:#1a4a2e; --active-border:#2d8c54; --active-text:#4ecb82;
+    --cm:#2a1f3a; --cm-border:#7040a0; --cm-text:#b080e0;
+    --unknown:#1a1f2a; --unknown-border:#3a4050; --unknown-text:#6a7590;
+    --met:#0e2035; --met-text:#4ab0e0;
+    --sb:#1a2a10; --sb-text:#7ad050;
+    --regen:#25180a; --regen-text:#e09040;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.5;min-height:100vh;}
+  header{background:var(--surface);border-bottom:2px solid var(--accent);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .header-left{display:flex;align-items:center;gap:14px;}
+  .apms-badge{background:var(--accent);color:#0a0800;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;padding:4px 10px;letter-spacing:.12em;text-transform:uppercase;}
+  .header-titles h1{font-size:14px;font-weight:600;color:var(--text-bright);letter-spacing:.02em;}
+  .header-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:.08em;margin-top:2px;}
+  .header-stats{display:flex;gap:16px;flex-wrap:wrap;}
+  .stat{text-align:center;}
+  .stat-num{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--accent);display:block;}
+  .stat-label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;}
+  .view-tabs{background:var(--surface2);border-bottom:1px solid var(--border);padding:0 28px;display:flex;}
+  .view-tab{padding:10px 22px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;}
+  .view-tab:hover{color:var(--text);}
+  .view-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .controls{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .controls label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-right:3px;}
+  .controls select,.controls input{background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;outline:none;}
+  .btn{background:var(--border2);border:1px solid var(--border2);color:var(--text-dim);padding:4px 12px;font-size:10px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.08em;}
+  .btn:hover,.btn.active{background:var(--accent);border-color:var(--accent);color:#0a0800;}
+  .sep{color:var(--border2);font-size:12px;}
+  .bd-legend{padding:8px 28px;display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface);align-items:center;}
+  .bd-legend-title{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;}
+  .bd-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;font-size:10px;font-weight:600;border:1px solid;letter-spacing:.04em;cursor:pointer;}
+  .bd-chip.inactive{opacity:.35;}
+  .bd-now{background:var(--now-bg);border-color:var(--now-border);color:var(--now-text);}
+  .bd-soon{background:var(--soon-bg);border-color:var(--soon-border);color:var(--soon-text);}
+  .bd-radar{background:var(--radar-bg);border-color:var(--radar-border);color:var(--radar-text);}
+  .bd-monitor{background:var(--monitor-bg);border-color:var(--monitor-border);color:var(--monitor-text);}
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:1300px;}
+  thead tr{background:var(--surface2);border-bottom:2px solid var(--border2);}
+  th{padding:8px 10px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);white-space:nowrap;cursor:pointer;border-right:1px solid var(--border);user-select:none;}
+  th:hover{color:var(--accent);}
+  th:last-child{border-right:none;}
+  tr.region-row td{padding:10px 16px 5px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.15em;background:var(--bg);}
+  tr.r-europe td{color:#8090d0;border-left:3px solid #4050a0;}
+  tr.r-namerica td{color:#50c0b0;border-left:3px solid #208070;}
+  tr.r-samerica td{color:#d08050;border-left:3px solid #804020;}
+  tr.country-row td{padding:5px 16px 5px 20px;font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;background:var(--surface);border-bottom:1px solid var(--border2);cursor:pointer;user-select:none;}
+  tr.country-row:hover td{background:var(--surface2);color:var(--text);}
+  tr.country-row .ccount{font-weight:400;font-size:10px;margin-left:10px;color:var(--text-dim);}
+  tbody tr.data-row{border-bottom:1px solid var(--border);}
+  tbody tr.data-row:hover{background:var(--surface2);}
+  tr.bd-now-row{border-left:3px solid var(--now-border);}
+  tr.bd-soon-row{border-left:3px solid var(--soon-border);}
+  tr.bd-radar-row{border-left:3px solid var(--radar-border);}
+  tr.bd-monitor-row{border-left:3px solid var(--monitor-border);}
+  td{padding:7px 10px;border-right:1px solid var(--border);vertical-align:top;font-size:12px;}
+  td:last-child{border-right:none;}
+  .td-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);white-space:nowrap;}
+  .td-operator{font-weight:700;color:var(--text-bright);font-size:12px;}
+  .td-dkl{font-size:10px;color:var(--text-dim);font-style:italic;margin-top:2px;}
+  .td-parent{font-size:11px;color:var(--text-dim);}
+  .td-city{color:var(--text-bright);}
+  .td-state{font-size:10px;color:var(--text-dim);}
+  .td-cap{font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap;}
+  .cap-val{color:var(--accent);font-weight:600;}
+  .cap-unit{color:var(--text-dim);font-size:9px;}
+  .cap-unk{color:var(--text-dim);font-style:italic;font-size:11px;}
+  .badge{display:inline-block;padding:2px 6px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid;white-space:nowrap;}
+  .s-active{background:var(--active);border-color:var(--active-border);color:var(--active-text);}
+  .s-reduced{background:#3a3010;border-color:#8c7020;color:#d4aa3a;}
+  .s-cm{background:var(--cm);border-color:var(--cm-border);color:var(--cm-text);}
+  .s-shutdown{background:#3a1515;border-color:#8c2020;color:#e05050;}
+  .s-unknown{background:var(--unknown);border-color:var(--unknown-border);color:var(--unknown-text);}
+  .t-met{background:var(--met);border-color:#1a5080;color:var(--met-text);}
+  .t-sb{background:var(--sb);border-color:#2a5010;color:var(--sb-text);}
+  .t-regen{background:var(--regen);border-color:#502810;color:var(--regen-text);}
+  .t-other{background:var(--unknown);border-color:var(--border2);color:var(--text-dim);}
+  .bd-badge{display:inline-block;padding:3px 7px;font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid;white-space:nowrap;}
+  .bd-badge.bd-now{background:var(--now-bg);border-color:var(--now-border);color:var(--now-text);}
+  .bd-badge.bd-soon{background:var(--soon-bg);border-color:var(--soon-border);color:var(--soon-text);}
+  .bd-badge.bd-radar{background:var(--radar-bg);border-color:var(--radar-border);color:var(--radar-text);}
+  .bd-badge.bd-monitor{background:var(--monitor-bg);border-color:var(--monitor-border);color:var(--monitor-text);}
+  .tech-tag{display:inline-block;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:1px 4px;background:var(--border);color:var(--text-dim);border:1px solid var(--border2);margin:1px 1px 0 0;white-space:nowrap;}
+  .sd-block{font-size:11px;line-height:1.5;}
+  .sd-row{display:flex;gap:4px;margin-bottom:1px;}
+  .sd-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;padding-top:1px;}
+  .sd-val{color:var(--text);}
+  .sd-val.highlight{color:var(--now-text);font-weight:600;}
+  .sd-val.soon{color:var(--soon-text);}
+  .contact-block{font-size:11px;}
+  .contact{display:flex;align-items:flex-start;gap:5px;margin-bottom:4px;}
+  .contact-role{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;padding-top:1px;min-width:48px;}
+  .contact-name{color:var(--text-bright);font-weight:600;}
+  .contact-li{font-size:9px;color:#0a84ff;text-decoration:none;margin-left:3px;}
+  .no-contact{font-size:10px;color:var(--text-dim);font-style:italic;}
+  .dkl-link{font-size:9px;color:var(--text-dim);text-decoration:none;font-family:'IBM Plex Mono',monospace;border-bottom:1px dotted var(--border2);}
+  .dkl-link:hover{color:var(--accent);}
+  .own-flag{font-size:9px;font-style:italic;margin-top:2px;}
+  .own-manual{color:var(--cm-text);}
+  .own-cross{color:var(--active-text);}
+  .footnotes{padding:20px 28px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);margin-top:4px;}
+  .footnotes h3{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:8px;font-family:'IBM Plex Mono',monospace;}
+  .footnotes ul{padding-left:18px;}
+  .footnotes li{margin-bottom:4px;line-height:1.5;}
+  .footnotes strong{color:var(--text);}
+  tr.empty-row td{padding:40px;text-align:center;color:var(--text-dim);}
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border2);}
+  /* MAP */
+  #map-container-outer{width:100%;background:var(--bg);}
+  #mapid{width:100%;height:calc(100vh - 200px);min-height:540px;}
+  .map-filter-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .map-legend-box{position:absolute;bottom:30px;right:12px;z-index:9999;background:rgba(21,24,32,0.96);border:1px solid var(--border2);padding:12px 16px;pointer-events:none;}
+  .map-legend-title{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+  .ml-item{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:11px;color:var(--text);}
+  .ml-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .map-count{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);margin-left:8px;}
+  .leaflet-popup-content-wrapper{background:var(--surface2) !important;border:1px solid var(--border2) !important;border-radius:2px !important;box-shadow:0 4px 20px rgba(0,0,0,.6) !important;}
+  .leaflet-popup-tip{background:var(--surface2) !important;}
+  .leaflet-popup-content{color:var(--text) !important;font-family:'IBM Plex Sans',sans-serif !important;font-size:12px !important;margin:10px 14px !important;min-width:220px;}
+  .pu-name{font-weight:700;font-size:13px;color:var(--text-bright);margin-bottom:3px;}
+  .pu-parent{font-size:10px;color:var(--text-dim);margin-bottom:6px;}
+  .pu-row{display:flex;gap:6px;margin-bottom:3px;}
+  .pu-lbl{color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;padding-top:1px;min-width:55px;}
+  .pu-val{color:var(--text);font-size:11px;}
+  .pu-hot{color:var(--now-text);font-weight:600;}
+  .pu-warm{color:var(--soon-text);font-weight:600;}
+  .pu-good{color:var(--radar-text);font-weight:600;}
+  .leaflet-control-zoom a{background:var(--surface2) !important;color:var(--text) !important;border-color:var(--border2) !important;}
+</style>
+</head>
+<body>
+
+<nav style="background:#0a0c10;border-bottom:1px solid #252b3b;padding:8px 28px;display:flex;gap:6px;align-items:center">
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#7a8499;text-transform:uppercase;letter-spacing:.1em;margin-right:8px">APMS Tools:</span>
+  <a href="apms-sap-matrix.html" style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:4px 12px;background:#0e2035;border:1px solid #1a5080;color:#4ab0e0;text-decoration:none;letter-spacing:.06em">&#9654; SAP BD Matrix</a>
+  <a href="tank-terminals.html" style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 12px;background:#151820;border:1px solid #252b3b;color:#7a8499;text-decoration:none;letter-spacing:.06em">&#9654; Tank Terminal Matrix</a>
+</nav>
+
+<header>
+  <div class="header-left">
+    <div class="apms-badge">APMS</div>
+    <div class="header-titles">
+      <h1>Global SAP BD Intelligence Matrix</h1>
+      <div class="header-meta">DKL ENGINEERING DATABASE &middot; CROSS-REFERENCED &middot; BD WINDOWS CALCULATED FROM MARCH 2026</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><span class="stat-num" id="totalCount">0</span><span class="stat-label">Plants</span></div>
+    <div class="stat"><span class="stat-num" id="nowCount" style="color:var(--now-text)">0</span><span class="stat-label">Reach Out Now</span></div>
+    <div class="stat"><span class="stat-num" id="soonCount" style="color:var(--soon-text)">0</span><span class="stat-label">Engage Soon</span></div>
+    <div class="stat"><span class="stat-num" id="radarCount" style="color:var(--radar-text)">0</span><span class="stat-label">On Radar</span></div>
+    <div class="stat"><span class="stat-num" id="euCount">0</span><span class="stat-label">Europe</span></div>
+    <div class="stat"><span class="stat-num" id="naCount">0</span><span class="stat-label">N. America</span></div>
+    <div class="stat"><span class="stat-num" id="saCount">0</span><span class="stat-label">S. America</span></div>
+  </div>
+</header>
+
+<div class="view-tabs">
+  <div class="view-tab active" id="tab-table" onclick="switchView('table')">&#9776;&nbsp; Table View</div>
+  <div class="view-tab" id="tab-map" onclick="switchView('map')">&#9679;&nbsp; Map View</div>
+</div>
+
+<!-- TABLE VIEW -->
+<div id="table-view">
+  <div class="controls">
+    <label>BD Window</label>
+    <select id="filterBD" onchange="applyFilters()">
+      <option value="">All Windows</option>
+      <option value="now">Reach Out Now (&lt;12mo)</option>
+      <option value="soon">Engage Soon (12-24mo)</option>
+      <option value="radar">On Radar (24-36mo)</option>
+      <option value="monitor">Monitor (36mo+)</option>
+    </select>
+    <span class="sep">|</span>
+    <label>Region</label>
+    <select id="filterRegion" onchange="applyFilters()">
+      <option value="">All Regions</option>
+      <option value="Europe">Europe</option>
+      <option value="North America">North America</option>
+      <option value="South America">South America</option>
+    </select>
+    <span class="sep">|</span>
+    <label>Type</label>
+    <select id="filterType" onchange="applyFilters()">
+      <option value="">All Types</option>
+      <option value="Metallurgical">Metallurgical</option>
+      <option value="Sulphur Burning">Sulphur Burning</option>
+      <option value="Regeneration">Regeneration</option>
+      <option value="Fertiliser">Fertiliser</option>
+    </select>
+    <span class="sep">|</span>
+    <label>Status</label>
+    <select id="filterStatus" onchange="applyFilters()">
+      <option value="">All Status</option>
+      <option value="Active">Active</option>
+      <option value="C&amp;M">C&amp;M</option>
+      <option value="Shutdown">Shutdown</option>
+    </select>
+    <span class="sep">|</span>
+    <label>Search</label>
+    <input type="text" id="searchBox" placeholder="Operator, location, contact..." oninput="applyFilters()" style="width:180px">
+    <button class="btn" onclick="clearFilters()">Clear</button>
+  </div>
+  <div class="bd-legend">
+    <span class="bd-legend-title">BD Window:</span>
+    <span class="bd-chip bd-now"     onclick="toggleBDFilter('now')"     id="chip-now">&#128308; Reach Out Now &lt;12mo</span>
+    <span class="bd-chip bd-soon"    onclick="toggleBDFilter('soon')"    id="chip-soon">&#128992; Engage Soon 12-24mo</span>
+    <span class="bd-chip bd-radar"   onclick="toggleBDFilter('radar')"   id="chip-radar">&#128994; On Radar 24-36mo</span>
+    <span class="bd-chip bd-monitor" onclick="toggleBDFilter('monitor')" id="chip-monitor">&#9899; Monitor 36mo+</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+      <tr>
+        <th onclick="sortBy('id')">#</th>
+        <th onclick="sortBy('bd_window')">BD Window</th>
+        <th onclick="sortBy('operator_current')">Current Operator</th>
+        <th onclick="sortBy('site')">Site / Plant</th>
+        <th onclick="sortBy('city')">Location</th>
+        <th onclick="sortBy('type')">Type</th>
+        <th>Technology</th>
+        <th onclick="sortBy('cap_mtpd')">Capacity</th>
+        <th onclick="sortBy('status')">Status</th>
+        <th>Shutdown Intelligence</th>
+        <th>Key Contacts</th>
+        <th>DKL</th>
+      </tr>
+    </thead>
+      <tbody id="matrixBody">
+        <tr class="empty-row"><td colspan="12">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footnotes">
+    <h3>Notes &amp; Data Caveats</h3>
+    <ul>
+      <li><strong>BD Windows</strong> calculated from March 2026. Where no confirmed date exists, frequency patterns and last known shutdown are used to estimate. Treat as indicative &mdash; verify before outreach.</li>
+      <li><strong>Shutdown Frequency:</strong> Metallurgical smelters typically 2-3 year cycles. Regen plants 1-2 years. Fertiliser SAPs 2-3 years.</li>
+      <li><strong>Primary Source:</strong> DKL Engineering Acid Plant Database (sulphuric-acid.com), cross-referenced with company press releases and annual reports to March 2026.</li>
+      <li><strong>Excluded:</strong> Russia, China, confirmed demolished plants.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- MAP VIEW -->
+<div id="map-view" style="display:none;">
+  <div class="map-filter-bar">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-right:4px;">Filter:</span>
+    <button class="btn active" id="mf-all"     onclick="mapFilter('all')">All</button>
+    <button class="btn"        id="mf-now"     onclick="mapFilter('now')"     style="color:var(--now-text);border-color:var(--now-border)">Now</button>
+    <button class="btn"        id="mf-soon"    onclick="mapFilter('soon')"    style="color:var(--soon-text);border-color:var(--soon-border)">Soon</button>
+    <button class="btn"        id="mf-radar"   onclick="mapFilter('radar')"   style="color:var(--radar-text);border-color:var(--radar-border)">Radar</button>
+    <button class="btn"        id="mf-monitor" onclick="mapFilter('monitor')" style="color:var(--monitor-text);border-color:var(--monitor-border)">Monitor</button>
+    <span class="sep">|</span>
+    <button class="btn" id="mf-eu" onclick="mapRegion('Europe')">Europe</button>
+    <button class="btn" id="mf-na" onclick="mapRegion('North America')">N. America</button>
+    <button class="btn" id="mf-sa" onclick="mapRegion('South America')">S. America</button>
+    <span class="map-count" id="mapCount"></span>
+  </div>
+  <div id="map-container-outer" style="position:relative;">
+    <div id="mapid"></div>
+    <div class="map-legend-box">
+      <div class="map-legend-title">BD Window</div>
+      <div class="ml-item"><div class="ml-dot" style="background:#cc2200;border:1px solid #ff5533;"></div>Reach Out Now</div>
+      <div class="ml-item"><div class="ml-dot" style="background:#774400;border:1px solid #ffaa00;"></div>Engage Soon</div>
+      <div class="ml-item"><div class="ml-dot" style="background:#113311;border:1px solid #44cc44;"></div>On Radar</div>
+      <div class="ml-item"><div class="ml-dot" style="background:#1a1a2a;border:1px solid #6688aa;"></div>Monitor</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const PLANTS = [
+  // ===================== EUROPE =====================
+  // --- AUSTRIA ---
+  {id:1,operator_dkl:"Donau Chemie - Pischelsdorf",operator_current:"Donau Chemie AG",parent:"Donau Chemie AG (private Austrian)",
+  site:"Pischelsdorf Chemical Plant",city:"Pischelsdorf",state:"Lower Austria",country:"Austria",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Chlor-alkali and sulphuric acid producer. Part of Donau Chemie group.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Donau Chemie AG",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Donau%20Chemie%20-%20Pischelsdorf.htm",ownership_flag:"cross"},
+
+  // --- BELGIUM ---
+  {id:2,operator_dkl:"Umicore - Hoboken",operator_current:"Umicore NV",parent:"Umicore NV (Euronext listed)",
+  site:"Hoboken Metallurgy Plant",city:"Hoboken",state:"Antwerp Province",country:"Belgium",region:"Europe",
+  type:"Metallurgical",technology:"ISAsmelt / TBRC, Lead Blast Furnace, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1887,status:"Active",
+  status_notes:"World's largest precious metals recycling facility. Complex secondary materials processing. Major SAP operation.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Umicore global procurement Brussels",li:null}],
+  source:"Cross-referenced",dkl_url:null,ownership_flag:"cross"},
+
+  {id:3,operator_dkl:"Nyrstar - Balen",operator_current:"Nyrstar NV",parent:"Trafigura (via Nyrstar)",
+  site:"Balen Zinc Smelter",city:"Balen",state:"Antwerp Province",country:"Belgium",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:350000,cap_note:"~350,000 MTPA zinc",year_built:1971,status:"Active",
+  status_notes:"Nyrstar European zinc smelter network.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Nyrstar%20-%20Balen.htm",ownership_flag:"cross"},
+
+  // --- BULGARIA ---
+  {id:4,operator_dkl:"Cumerio - Pirdop",operator_current:"Aurubis Bulgaria AD",parent:"Aurubis AG",
+  site:"Pirdop Copper Smelter",city:"Pirdop",state:"Sofia Province",country:"Bulgaria",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace, Peirce-Smith Converters, DCDA (3/1 DA)",
+  cap_mtpd:3880,cap_mtpa:null,cap_note:"2 x 1,940 MTPD",year_built:1981,status:"Active",
+  status_notes:"Largest maintenance in 30 years Jul 2025 (~60 days, ~EUR115M). 3-year cycle. Next ~2028. Bulgaria 2027 investment program ongoing.",
+  last_shutdown:"May-Jul 2025 (~60 days)",next_shutdown:"~2028 (est.)",shutdown_freq:"3 years (extended from 2)",shutdown_dur:"~60 days",bd_window:"radar",
+  contacts:[{role:"Plant Mgr",name:"Tim Kurth (Plant Manager)",li:"https://www.linkedin.com/in/tim-kurth-b47376"},{role:"Procurement",name:"Via Aurubis AG Hamburg",li:null}],
+  source:"DKL + Aurubis press releases",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Cumerio%20-%20Pirdop.htm",ownership_flag:"cross"},
+
+  // --- FINLAND ---
+  {id:5,operator_dkl:"Boliden Harjavalta",operator_current:"Boliden Harjavalta Oy",parent:"Boliden AB",
+  site:"Harjavalta Smelter",city:"Harjavalta",state:"Satakunta",country:"Finland",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (Cu + Ni DON), Peirce-Smith Converters, DCDA",
+  cap_mtpd:3970,cap_mtpa:null,cap_note:"3 trains, ~3,970 MTPD combined",year_built:1947,status:"Active",
+  status_notes:"Annual spring outage confirmed Q2 2026. Only Ni smelter in Western Europe. Boliden SEK -450M smelter outage budget 2026.",
+  last_shutdown:"Apr-Jun 2025 (~6 weeks)",next_shutdown:"Q2 2026 (annual, CONFIRMED)",shutdown_freq:"Annual (spring)",shutdown_dur:"~6 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Antti Kontiainen (CEO Boliden Harjavalta)",li:"https://www.linkedin.com/in/antti-kontiainen"},{role:"Maintenance",name:"Esa Peuraniemi (Development Manager)",li:null}],
+  source:"DKL + Boliden guidance Dec 2025",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Boliden%20Harjavalta.htm",ownership_flag:"cross"},
+
+  {id:6,operator_dkl:"Boliden/Kemira - Kokkola",operator_current:"Boliden Kokkola Oy",parent:"Boliden AB",
+  site:"Kokkola Zinc Smelter",city:"Kokkola",state:"Central Ostrobothnia",country:"Finland",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (2 x 72m2 FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:300000,cap_note:"~300,000 MTPA H2SO4",year_built:1969,status:"Active",
+  status_notes:"Europe 2nd largest zinc plant. Boliden 2026 smelter outage plan includes Kokkola (SEK -450M total impact).",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est., per Boliden guidance)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Boliden Group procurement",li:null}],
+  source:"DKL + Boliden guidance Dec 2025",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Boliden%20Kokkola.htm",ownership_flag:"cross"},
+
+  {id:7,operator_dkl:"Yara International - Siilinjärvi",operator_current:"Yara International ASA",parent:"Yara International ASA",
+  site:"Siilinjärvi Fertiliser Complex",city:"Siilinjärvi",state:"North Savonia",country:"Finland",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Europe's only domestic phosphate rock mine. Integrated fertiliser complex.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Yara Finland operations",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Yara%20International%20-%20Siilinjärvi.htm",ownership_flag:"cross"},
+
+  // --- FRANCE ---
+  {id:8,operator_dkl:"Nyrstar - Auby",operator_current:"Nyrstar Auby SAS",parent:"Trafigura (via Nyrstar)",
+  site:"Auby Zinc Smelter",city:"Auby",state:"Nord",country:"France",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1966,status:"Active",
+  status_notes:"Energy curtailments 2022-23. Back to fuller operations 2024-25.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Nyrstar%20-%20Auby.htm",ownership_flag:"cross"},
+
+  {id:9,operator_dkl:"Adisseo",operator_current:"Adisseo France SAS",parent:"China National Bluestar (Bluestar Adisseo)",
+  site:"Roussillon Chemical Plant",city:"Roussillon",state:"Isere",country:"France",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Animal nutrition / methionine production. H2SO4 consumed in process.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Adisseo France",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Adisseo-France.htm",ownership_flag:"manual"},
+
+  // --- GERMANY ---
+  {id:10,operator_dkl:"Norddeutsche Affinerie AG",operator_current:"Aurubis AG",parent:"Aurubis AG",
+  site:"Hamburg Copper Smelter",city:"Hamburg",state:"Hamburg",country:"Germany",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace, Peirce-Smith Converters, DCDA (3 trains)",
+  cap_mtpd:3900,cap_mtpa:null,cap_note:"3 x 1,300 MTPD; ~2.1M MTPA group H2SO4",year_built:1972,status:"Active",
+  status_notes:"LARGEST SHUTDOWN IN HISTORY May-Jul 2024 (60 days, EUR95M, ~2,000 workers). 3-year cycle from 2024. Next ~2027. World's first metallurgical acid plant (1936). Brought forward Q1 FY2025/26.",
+  last_shutdown:"May-Jul 2024 (60 days, EUR95M)",next_shutdown:"~2027 (3-year cycle)",shutdown_freq:"3 years",shutdown_dur:"~56-60 days",bd_window:"radar",
+  contacts:[{role:"Plant Mgr",name:"Jens Jacobsen (Plant Manager)",li:null},{role:"Production",name:"Axel Brand (Head of Production)",li:null}],
+  source:"DKL + Aurubis press releases + Q1 FY2025/26 results",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Norddeutsche%20-%20Germany.htm",ownership_flag:"cross"},
+
+  {id:11,operator_dkl:"Aurubis Lunen",operator_current:"Aurubis AG (Lunen)",parent:"Aurubis AG",
+  site:"Lunen Secondary Copper Smelter",city:"Lunen",state:"North Rhine-Westphalia",country:"Germany",region:"Europe",
+  type:"Metallurgical",technology:"Top-Blown Rotary Converter (TBRC), Kaldo furnace, SAP",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Secondary smelter; ~200k MTPA Cu cathode",year_built:1972,status:"Active",
+  status_notes:"Secondary copper smelter processing scrap. Tankhouse refurbishment completed mid-2024 (+10% capacity). BOB bleed treatment project ongoing.",
+  last_shutdown:"2024 (tankhouse refurb)",next_shutdown:"2026-2027 (est.)",shutdown_freq:"~2-3 years",shutdown_dur:"~4-6 weeks",bd_window:"soon",
+  contacts:[{role:"Site Mgr",name:"Via Aurubis Lunen management",li:null}],
+  source:"DKL + Aurubis Annual Report 2023/24",dkl_url:null,ownership_flag:"cross"},
+
+  {id:12,operator_dkl:"BASF - Ludwigshafen",operator_current:"BASF SE",parent:"BASF SE",
+  site:"Ludwigshafen Chemical Complex",city:"Ludwigshafen",state:"Rhineland-Palatinate",country:"Germany",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA / Claus; new ultrapure SAP announced Apr 2025",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Multiple plants, world's largest integrated chemical site",year_built:null,status:"Active",
+  status_notes:"New ultrapure H2SO4 plant for semiconductor industry announced April 2025. Multiple SAP trains on site.",
+  last_shutdown:"Unknown (per train)",next_shutdown:"Unknown",shutdown_freq:"~2-3 years per train",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"BASF SE global procurement",li:null}],
+  source:"DKL + BASF Apr 2025",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/BASF%20-%20Ludwigshafen.htm",ownership_flag:"cross"},
+
+  // --- ITALY ---
+  {id:13,operator_dkl:"Portovesme - Sardinia",operator_current:"Portovesme S.r.l.",parent:"Glencore plc",
+  site:"Portovesme Lead/Zinc Smelter",city:"Portoscuso",state:"Sardinia",country:"Italy",region:"Europe",
+  type:"Metallurgical",technology:"ISF, FBR Zinc Roaster, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1982,status:"C&M",
+  status_notes:"ISF idled early 2023 (EU energy crisis). Partial restarts. Status uncertain 2026.",
+  last_shutdown:"2023 (energy curtailment)",next_shutdown:"Uncertain",shutdown_freq:"N/A (C&M)",shutdown_dur:"N/A",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Portovesme%20-%20Sardinia.htm",ownership_flag:"cross"},
+
+  // --- NETHERLANDS ---
+  {id:14,operator_dkl:"Nyrstar - Budel",operator_current:"Nyrstar Netherlands BV",parent:"Trafigura (via Nyrstar)",
+  site:"Budel Zinc Smelter (Budelco)",city:"Budel-Dorplein",state:"North Brabant",country:"Netherlands",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:315000,cap_note:"~315,000 MTPA zinc",year_built:1973,status:"Active",
+  status_notes:"Energy curtailments 2022. Back to fuller operations 2024. One of Europe's largest zinc smelters.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Nyrstar%20-%20Budel.htm",ownership_flag:"cross"},
+
+  // --- NORWAY ---
+  {id:15,operator_dkl:"Boliden Odda",operator_current:"Boliden Odda AS",parent:"Boliden AB",
+  site:"Odda Zinc Smelter",city:"Odda",state:"Vestland",country:"Norway",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:180000,cap_note:"~180,000 MTPA zinc (expanding to ~320k MTPA)",year_built:1929,status:"Active",
+  status_notes:"Major expansion commissioning Q1 2026. Post-expansion maintenance expected. Part of Boliden 2026 smelter outage plan (SEK -450M total).",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (post-expansion)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Boliden Group procurement",li:null}],
+  source:"DKL + Boliden guidance Dec 2025",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Boliden%20Odda.htm",ownership_flag:"cross"},
+
+  {id:16,operator_dkl:"Xstrata Nickel - Nikkelverk",operator_current:"Glencore Nikkelverk AS",parent:"Glencore plc",
+  site:"Nikkelverk Nickel Refinery",city:"Kristiansand",state:"Agder",country:"Norway",region:"Europe",
+  type:"Metallurgical",technology:"Ni Refinery (chlorine leach/electrowinning), DCDA (MECS 2/1 DA)",
+  cap_mtpd:240,cap_mtpa:null,cap_note:"240 MTPD; first MECS HRS on metallurgical application",year_built:1987,status:"Active",
+  status_notes:"Receives granulated matte from Glencore Sudbury (Falconbridge). Refines Ni, Cu, Co, PGMs.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Xstrata%20Nickel%20-%20Nikkelverk.htm",ownership_flag:"cross"},
+
+  // --- POLAND ---
+  {id:17,operator_dkl:"KGHM Polska - Glogow I",operator_current:"KGHM Polska Miedz S.A.",parent:"Polish State (majority)",
+  site:"Glogow I Copper Smelter",city:"Glogow / Zukowice",state:"Lower Silesia",country:"Poland",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (Direct-to-Blister, world's largest flash+electric unit 2016), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"240k MTPA electrolytic Cu",year_built:1971,status:"Active",
+  status_notes:"Major overhaul Aug-Oct 2024 (75 days, 5 days early). 2nd major since 2016. Next major ~2028.",
+  last_shutdown:"Aug-Oct 2024 (75 days)",next_shutdown:"~2028 (major)",shutdown_freq:"~4 years (major overhaul)",shutdown_dur:"~75 days",bd_window:"radar",
+  contacts:[{role:"Procurement",name:"KGHM Polska Miedz SA - Lubin HQ",li:null}],
+  source:"DKL + KGHM press releases Oct 2024",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/KGHM%20Polska%20-%20Glogow.htm",ownership_flag:"cross"},
+
+  {id:18,operator_dkl:"KGHM Polska - Glogow II",operator_current:"KGHM Polska Miedz S.A.",parent:"Polish State (majority)",
+  site:"Glogow II Copper Smelter",city:"Glogow / Zukowice",state:"Lower Silesia",country:"Poland",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (Direct-to-Blister 1978+2008), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"235k MTPA electrolytic Cu",year_built:1978,status:"Active",
+  status_notes:"PLANNED MAINTENANCE SHUTDOWN H2 2026 CONFIRMED (KGHM 2026 guidance). TOP PRIORITY TARGET.",
+  last_shutdown:"Q1 2025 (routine, impacted output -6% YoY)",next_shutdown:"H2 2026 (CONFIRMED)",shutdown_freq:"~2 years",shutdown_dur:"~6-10 weeks (est.)",bd_window:"now",
+  contacts:[{role:"Procurement",name:"KGHM Polska Miedz SA - Lubin HQ",li:null},{role:"Maintenance",name:"Via KGHM technical division",li:null}],
+  source:"DKL + KGHM 2026 guidance (Argus/Metalnomist Feb 2026)",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/KGHM%20Polska%20-%20Glogow.htm",ownership_flag:"cross"},
+
+  {id:19,operator_dkl:"KGHM Polska - Legnica",operator_current:"KGHM Polska Miedz S.A.",parent:"Polish State (majority)",
+  site:"Legnica Copper Smelter",city:"Legnica",state:"Lower Silesia",country:"Poland",region:"Europe",
+  type:"Metallurgical",technology:"Shaft Furnace (reverberatory being shut), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1951,status:"Active",
+  status_notes:"Reverberatory furnace shutdown planned 2026 (KGHM 2026 guidance). Plant transforming to recycling/scrap. Scrap Turnover Facility agreement Dec 2025.",
+  last_shutdown:"Routine",next_shutdown:"2026 (reverb furnace shutdown, CONFIRMED)",shutdown_freq:"Annual routine",shutdown_dur:"Unknown",bd_window:"now",
+  contacts:[{role:"Procurement",name:"KGHM Polska Miedz SA - Lubin HQ",li:null}],
+  source:"DKL + KGHM 2026 guidance",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/KGHM%20Polska%20-%20Legnica.htm",ownership_flag:"cross"},
+
+  {id:20,operator_dkl:"ZCh Police",operator_current:"Police SA / Grupa Azoty",parent:"Grupa Azoty SA (Polish State)",
+  site:"Police Chemical Complex",city:"Police",state:"West Pomerania",country:"Poland",region:"Europe",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in phosphate fertiliser production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Fertiliser complex, Police Fertilisers SA. Acid in phosphate fertiliser production.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Grupa Azoty Police",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/ZCh%20Police.htm",ownership_flag:"cross"},
+
+  {id:21,operator_dkl:"Zaklady Azotowe - Pulawy",operator_current:"Azoty Pulawy SA",parent:"Grupa Azoty SA (Polish State)",
+  site:"Pulawy Nitrogen Complex",city:"Pulawy",state:"Lublin",country:"Poland",region:"Europe",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; H2SO4 for ammonium sulphate production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Major nitrogen/fertiliser complex. Poland's largest fertiliser producer.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Azoty Pulawy management",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Zaklady%20Azotowe%20-%20Pulawy.htm",ownership_flag:"cross"},
+
+  // --- SPAIN ---
+  {id:22,operator_dkl:"Rio Tinto Minera / Atlantic Copper",operator_current:"Atlantic Copper S.L.U.",parent:"Freeport-McMoRan Inc.",
+  site:"Huelva Copper Smelter & Refinery",city:"Huelva",state:"Andalusia",country:"Spain",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace, Peirce-Smith Converters, DCDA (Outotec/Lurgi, 3 trains)",
+  cap_mtpd:3000,cap_mtpa:null,cap_note:"3,000 MTPD; ~910,000 MTPA H2SO4 (2025)",year_built:1971,status:"Active",
+  status_notes:"CirCular e-scrap plant commissioning Q2-Q3 2026 (EUR350M). CEO: Macarena Gutierrez. 947k MT concentrate processed 2025.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (CirCular commissioning)",shutdown_freq:"~2-3 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Macarena Gutierrez",li:null},{role:"Comms",name:"Marta Cerati (Director Comms & ESG)",li:null}],
+  source:"DKL + Atlantic Copper Mar 2026",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Atlantic%20Copper%20-%20Huelva.htm",ownership_flag:"cross"},
+
+  {id:23,operator_dkl:"Asturiana De Zinc - San Juan",operator_current:"Asturiana de Zinc S.A.",parent:"Glencore plc",
+  site:"San Juan de Nieva Zinc Smelter",city:"San Juan de Nieva",state:"Asturias",country:"Spain",region:"Europe",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:430000,cap_note:"~430,000 MTPA zinc - largest in Europe",year_built:1967,status:"Active",
+  status_notes:"Largest zinc smelter in Europe. Glencore (formerly Xstrata) since 2013.",
+  last_shutdown:"2024 (est.)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Asturiana%20De%20Zinc%20-%20San%20Juan.htm",ownership_flag:"cross"},
+
+  {id:24,operator_dkl:"Española del Zinc",operator_current:"Espanola del Zinc SA",parent:"Trafigura / Nyrstar (majority)",
+  site:"Cartagena Zinc Smelter",city:"Cartagena",state:"Region of Murcia",country:"Spain",region:"Europe",
+  type:"Metallurgical",technology:"Imperial Smelting Furnace (ISF), FBR Roaster, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1967,status:"Unknown",
+  status_notes:"Zinc/lead smelter at Port of Cartagena. ISF technology. Status requires verification.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Espanola-del-Zinc.htm",ownership_flag:"manual"},
+
+  // --- SWEDEN ---
+  {id:25,operator_dkl:"Boliden Mineral AB - Ronnskar",operator_current:"Boliden Mineral AB",parent:"Boliden AB",
+  site:"Ronnskar Copper/Lead Smelter",city:"Skelleftehamn",state:"Vasterbotten",country:"Sweden",region:"Europe",
+  type:"Metallurgical",technology:"Outotec Flash Furnace, Kaldo (Lead), FBR Roaster, Electric Smelting Furnace, DCDA",
+  cap_mtpd:null,cap_mtpa:600000,cap_note:"600,000 MTPA H2SO4; 50,000 MTPA Liquid SO2",year_built:1930,status:"Active",
+  status_notes:"Tankhouse destroyed by fire Jun 2023. New tankhouse commissioned 2025. Final recovery adjustment Q4 2025 (~SEK +400M). Part of Boliden 2026 smelter outage plan.",
+  last_shutdown:"2024 (routine + fire recovery)",next_shutdown:"2026 (planned per Boliden guidance)",shutdown_freq:"Annual (Boliden smelter cycle)",shutdown_dur:"~4-6 weeks",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Boliden Group procurement Skelleftea",li:null}],
+  source:"DKL + Boliden guidance Dec 2025",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Boliden%20-%20Ronnskar.htm",ownership_flag:"cross"},
+
+  // ===================== NORTH AMERICA =====================
+  // --- CANADA ---
+  {id:26,operator_dkl:"Vale INCO - Sudbury",operator_current:"Vale Base Metals (Copper Cliff)",parent:"Vale S.A.",
+  site:"Copper Cliff Smelter Complex",city:"Copper Cliff",state:"Ontario",country:"Canada",region:"North America",
+  type:"Metallurgical",technology:"INCO Flash Furnace (2x), MECS/Lurgi, 3/1 DA",
+  cap_mtpd:3200,cap_mtpa:null,cap_note:"3,200 MTPD (2007 debottleneck)",year_built:1991,status:"Active",
+  status_notes:"Superstack dismantled Sep 2024 (Clean AER project). Active smelter. Ongoing modernisation.",
+  last_shutdown:"2024 (routine)",next_shutdown:"2026 (est.)",shutdown_freq:"~2 years",shutdown_dur:"~4-6 weeks",bd_window:"soon",
+  contacts:[{role:"Procurement",name:"Via Vale Base Metals supply chain",li:null}],
+  source:"DKL + mining.com Sep 2024",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Vale%20INCO%20-%20Sudbury.htm",ownership_flag:"cross"},
+
+  {id:27,operator_dkl:"Xstrata Nickel - Falconbridge",operator_current:"Glencore Canada (Sudbury INO)",parent:"Glencore plc",
+  site:"Sudbury Smelter (Falconbridge)",city:"Falconbridge",state:"Ontario",country:"Canada",region:"North America",
+  type:"Metallurgical",technology:"Roaster, Electric Furnace, MECS (4 SA after 2008 upgrade)",
+  cap_mtpd:1168,cap_mtpa:null,cap_note:"1,168 MTPD",year_built:1978,status:"Active",
+  status_notes:"Produces Ni-Cu matte sent to Nikkelverk Norway. Ongoing sulphur abatement upgrades.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Glencore Sudbury INO",li:null}],
+  source:"DKL Jan 2020",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Xstrata%20Nickel%20-%20Falconbridge.htm",ownership_flag:"cross"},
+
+  {id:28,operator_dkl:"Teck Cominco - Trail",operator_current:"Teck Resources / Glencore",parent:"Glencore plc (base metals acquired 2023)",
+  site:"Trail Operations (Zn/Pb Smelter)",city:"Trail",state:"British Columbia",country:"Canada",region:"North America",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA; ammonium sulphate coproduction",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"World's largest integrated Zn/Pb smelter",year_built:1896,status:"Active",
+  status_notes:"Glencore acquisition of Teck base metals completed 2023. Trail now part of Glencore zinc.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"~4-6 weeks",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Teck%20Cominco%20-%20Trail.htm",ownership_flag:"cross"},
+
+  {id:29,operator_dkl:"Noranda Income Fund - CEZinc",operator_current:"Canadian Electrolytic Zinc Ltd (CEZinc)",parent:"Glencore plc",
+  site:"Valleyfield Zinc Refinery",city:"Salaberry-de-Valleyfield",state:"Quebec",country:"Canada",region:"North America",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:270000,cap_note:"~270,000 MTPA zinc",year_built:1963,status:"Active",
+  status_notes:"Largest zinc smelter in Canada.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"~4-6 weeks",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Noranda%20Income%20Fund%20-%20CEZinc.htm",ownership_flag:"manual"},
+
+  // --- CANADA: CHEMTRADE REGEN ---
+  {id:30,operator_dkl:"Chemtrade - Beaumont TX",operator_current:"Chemtrade Refinery Services Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Beaumont Sulphuric Acid & Regen Plant",city:"Beaumont",state:"Texas",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA; RC14001 certified",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Serves Gulf Coast refineries (alkylation unit spent acid). Short turnaround cycles. Scott Rook CEO.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"Chemtrade locations + DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Chemtrade%20-%20Beaumont.htm",ownership_flag:"cross"},
+
+  {id:31,operator_dkl:"Chemtrade - Shreveport LA",operator_current:"Chemtrade Refinery Services Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Shreveport Sulphuric Acid & Regen Plant",city:"Shreveport",state:"Louisiana",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Serves Louisiana refinery alkylation units. Short turnaround cycles.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Chemtrade%20-%20Shreveport.htm",ownership_flag:"cross"},
+
+  {id:32,operator_dkl:"Chemtrade - Richmond CA",operator_current:"Chemtrade Refinery Services Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Richmond Sulphuric Acid & Regen + UltraPure Plant",city:"Richmond",state:"California",country:"USA",region:"North America",
+  type:"Regeneration",technology:"SAR + Virgin H2SO4 + UltraPure DCDA; RC14001 certified",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Virgin + regen + UltraPure",year_built:null,status:"Active",
+  status_notes:"Produces regen, commercial grade and UltraPure acid (semiconductor industry). Short turnaround cycles.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"Chemtrade locations",dkl_url:null,ownership_flag:"cross"},
+
+  {id:33,operator_dkl:"Chemtrade - Cairo OH",operator_current:"Chemtrade Logistics Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Cairo Sulphuric Acid & UltraPure Plant",city:"Cairo",state:"Ohio",country:"USA",region:"North America",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA + UltraPure processing; RC14001 certified",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Commercial + UltraPure H2SO4 + Sodium Bisulphite",year_built:null,status:"Active",
+  status_notes:"Commercial grade and UltraPure H2SO4 for semiconductor/electronics. Sodium bisulphite coproduction.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years",shutdown_dur:"~2-4 weeks",bd_window:"monitor",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"Chemtrade locations",dkl_url:null,ownership_flag:"cross"},
+
+  {id:34,operator_dkl:"Chemtrade - Anacortes WA",operator_current:"Chemtrade Refinery Services Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Anacortes Sulphuric Acid & Regen Plant",city:"Anacortes",state:"Washington",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA; RC14001 certified",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Serves Pacific Northwest refinery alkylation units.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"Chemtrade locations",dkl_url:null,ownership_flag:"cross"},
+
+  {id:35,operator_dkl:"Chemtrade - Riverton WY",operator_current:"Chemtrade Logistics Inc.",parent:"Chemtrade Logistics Income Fund (TSX: CHE.UN)",
+  site:"Riverton Sulphuric Acid & Regen Plant",city:"Riverton",state:"Wyoming",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Sulphuric Acid + Regen production, DCDA; RC14001 certified",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Combined sulphuric acid and regen production. Liquid SO2 coproduction also at this location.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"CEO",name:"Scott Rook (Chemtrade CEO)",li:null}],
+  source:"Chemtrade locations",dkl_url:null,ownership_flag:"cross"},
+
+  // --- USA: ECOVYST ECOSERVICES NETWORK ---
+  {id:36,operator_dkl:"Ecovyst Ecoservices - Baton Rouge LA",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Baton Rouge Sulphuric Acid Regen Plant",city:"Baton Rouge",state:"Louisiana",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR, thermal incineration), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units",year_built:1978,status:"Active",
+  status_notes:"Longest-operating Ecoservices site. Adjacent to acquired Waggaman assets (Cornerstone, Q2 2025). DCS furnace optimisation system installed 2021-22 (-5% natural gas). Serves Gulf Coast alkylation refineries.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null},{role:"CEO",name:"Kurt J. Bitting (Ecovyst CEO)",li:null}],
+  source:"Ecovyst press releases + Airvac case study",dkl_url:null,ownership_flag:"cross"},
+
+  {id:37,operator_dkl:"Ecovyst Ecoservices - Waggaman LA",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Waggaman Sulphuric Acid Plant (ex-Cornerstone)",city:"Waggaman",state:"Louisiana",country:"USA",region:"North America",
+  type:"Regeneration",technology:"SAR + Virgin H2SO4, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Acquired from Cornerstone Chemical Q2 2025",year_built:null,status:"Active",
+  status_notes:"Acquired from Cornerstone Chemical Company Q2 2025. Strategic proximity to Baton Rouge site. First inspection cycle as Ecovyst asset - likely early BD opportunity.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst Mar 2025 press release",dkl_url:null,ownership_flag:"cross"},
+
+  {id:38,operator_dkl:"Ecovyst Ecoservices - Baytown TX",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Baytown Sulphuric Acid Regen Plant",city:"Baytown",state:"Texas",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units",year_built:null,status:"Active",
+  status_notes:"Serves Gulf Coast alkylation refineries. Part of Ecoservices' >65% West Coast and Gulf Coast alky capacity.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst investor presentation 2023",dkl_url:null,ownership_flag:"cross"},
+
+  {id:39,operator_dkl:"Ecovyst Ecoservices - Houston TX",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Houston Sulphuric Acid Regen Plant",city:"Houston",state:"Texas",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units",year_built:null,status:"Active",
+  status_notes:"Serves Houston Ship Channel refinery complex. Key Gulf Coast alkylation supply hub.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst investor presentation 2023",dkl_url:null,ownership_flag:"cross"},
+
+  {id:40,operator_dkl:"Ecovyst Ecoservices - Hammond IN",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Hammond Sulphuric Acid Regen Plant",city:"Hammond",state:"Indiana",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units",year_built:null,status:"Active",
+  status_notes:"Serves Midwest refinery alkylation units. Key Great Lakes region supply point.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst investor presentation 2023",dkl_url:null,ownership_flag:"cross"},
+
+  {id:41,operator_dkl:"Ecovyst Ecoservices - Martinez CA",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Martinez Sulphuric Acid Regen Plant",city:"Martinez",state:"California",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units; Mr. Coxon memorial visit noted in 2024 report",year_built:null,status:"Active",
+  status_notes:"Serves California refinery alkylation units (part of >65% West Coast + Gulf Coast alky capacity cluster).",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst investor presentation 2023 + 2024 Sustainability Report",dkl_url:null,ownership_flag:"cross"},
+
+  {id:42,operator_dkl:"Ecovyst Ecoservices - Dominguez CA",operator_current:"Ecovyst Inc. (Ecoservices)",parent:"Ecovyst Inc. (NYSE: ECVT)",
+  site:"Dominguez Sulphuric Acid Regen Plant",city:"Dominguez (Carson)",state:"California",country:"USA",region:"North America",
+  type:"Regeneration",technology:"Spent Acid Regeneration (SAR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"One of 8 Ecoservices regen units; noted in 2024 Sustainability Report",year_built:null,status:"Active",
+  status_notes:"Serves Los Angeles basin refinery alkylation units.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~1-2 years",shutdown_dur:"~2-4 weeks",bd_window:"now",
+  contacts:[{role:"President",name:"George L. Vann (President, Ecoservices)",li:null}],
+  source:"Ecovyst 2024 Sustainability Report",dkl_url:null,ownership_flag:"cross"},
+
+  // --- USA: METALLURGICAL ---
+  {id:43,operator_dkl:"Kennecott Utah Copper",operator_current:"Rio Tinto Kennecott LLC",parent:"Rio Tinto plc",
+  site:"Garfield / Magna Smelter",city:"Magna",state:"Utah",country:"USA",region:"North America",
+  type:"Metallurgical",technology:"Outotec Flash Furnace + Flash Converting (1995), DCDA (MECS 3/1 DA), DynaWave GCL, HRS",
+  cap_mtpd:3500,cap_mtpa:null,cap_note:"3,500 MTPD; ~1M MTPA H2SO4",year_built:1995,status:"Active",
+  status_notes:"World's cleanest smelter (99.9% S capture). Biennial ~24 day shutdowns every 2 years. Last 2024. Next 2026.",
+  last_shutdown:"2024 (biennial, ~24 days)",next_shutdown:"2026 (biennial, CONFIRMED pattern)",shutdown_freq:"~2 years",shutdown_dur:"~24 days",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Rio Tinto Kennecott supply chain",li:null}],
+  source:"DKL + Rio Tinto reporting + SMM 2012",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Kennecott%20Utah%20Copper%20-%20Salt%20Lake%20City.htm",ownership_flag:"cross"},
+
+  {id:44,operator_dkl:"Freeport-McMoRan - Miami (Hayden)",operator_current:"Freeport-McMoRan Inc.",parent:"Freeport-McMoRan Inc.",
+  site:"Miami / Hayden Smelter",city:"Hayden",state:"Arizona",country:"USA",region:"North America",
+  type:"Metallurgical",technology:"Outotec Flash Smelting, Peirce-Smith Converters, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1912,status:"Active",
+  status_notes:"One of two remaining primary copper smelters in USA. FCX also operates Morenci AZ mine complex.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via FCX Arizona operations",li:null}],
+  source:"DKL/Cross-referenced",dkl_url:null,ownership_flag:"cross"},
+
+  // --- USA: FERTILISER SAPs ---
+  {id:45,operator_dkl:"Mosaic - New Wales FL",operator_current:"Mosaic Fertilizer LLC",parent:"The Mosaic Company (NYSE: MOS)",
+  site:"New Wales Phosphate / Fertiliser Complex",city:"Mulberry",state:"Florida",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in wet-process phosphoric acid production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Multiple H2SO4 units; ~2.2M MTPA processed phosphates total (Bartow site scale)",year_built:null,status:"Active",
+  status_notes:"One of 4 active Mosaic US phosphate sites. All FL+LA H2SO4 plants back on 3-year turnaround cycle (confirmed Argus Mar 2025). Largest phosphate producer in USA.",
+  last_shutdown:"~2023-2024 (est.)",next_shutdown:"~2026-2027 (3-year cycle)",shutdown_freq:"~3 years",shutdown_dur:"~30 days per unit",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Mosaic Fertilizer LLC Florida operations",li:null}],
+  source:"EPA enforcement + Argus Mar 2025",dkl_url:null,ownership_flag:"cross"},
+
+  {id:46,operator_dkl:"Mosaic - Bartow FL",operator_current:"Mosaic Fertilizer LLC",parent:"The Mosaic Company (NYSE: MOS)",
+  site:"Bartow Phosphate Plant",city:"Bartow",state:"Florida",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in phosphoric acid production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"SAP turnaround ongoing Mar 2025 (confirmed by Mosaic/Argus)",year_built:null,status:"Active",
+  status_notes:"TURNAROUND CONFIRMED ONGOING Mar 2025 (Argus). Back on 3-year cycle. Produces ~2.2M MTPA processed phosphates. ~60% North American phosphoric acid production at Bartow alone.",
+  last_shutdown:"Mar 2025 (CONFIRMED turnaround)",next_shutdown:"~2028 (3-year cycle from 2025)",shutdown_freq:"~3 years",shutdown_dur:"~30 days per unit",bd_window:"radar",
+  contacts:[{role:"Procurement",name:"Via Mosaic Fertilizer LLC Bartow FL",li:null}],
+  source:"Argus Mar 2025 + CLUI/Mosaic data",dkl_url:null,ownership_flag:"cross"},
+
+  {id:47,operator_dkl:"Mosaic - Riverview FL",operator_current:"Mosaic Fertilizer LLC",parent:"The Mosaic Company (NYSE: MOS)",
+  site:"Riverview Phosphate Plant",city:"Riverview",state:"Florida",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in phosphoric acid production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"One of 4 active Mosaic US phosphate sites. 2016 gypstack released 215M gallons wastewater. All H2SO4 units on 3-year turnaround cycle (Argus Mar 2025).",
+  last_shutdown:"~2023-2024 (est.)",next_shutdown:"~2026-2027 (3-year cycle)",shutdown_freq:"~3 years",shutdown_dur:"~30 days per unit",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Mosaic Fertilizer LLC Florida operations",li:null}],
+  source:"EPA enforcement + Argus Mar 2025",dkl_url:null,ownership_flag:"cross"},
+
+  {id:48,operator_dkl:"Mosaic - Uncle Sam LA",operator_current:"Mosaic Fertilizer LLC",parent:"The Mosaic Company (NYSE: MOS)",
+  site:"Uncle Sam Fertiliser Complex",city:"Uncle Sam / Convent",state:"Louisiana",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; multiple SAP + phosphoric acid units",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Multiple H2SO4 units; 2 units confirmed in prior maintenance scheduling",year_built:null,status:"Active",
+  status_notes:"St. James Parish Louisiana (Cancer Alley industrial zone). Multiple H2SO4 + phosphoric acid production units. 30-day SAP maintenance windows confirmed. 3-year cycle restored post-COVID (Argus Mar 2025).",
+  last_shutdown:"~2023-2024 (est.)",next_shutdown:"~2026-2027 (3-year cycle)",shutdown_freq:"~3 years",shutdown_dur:"~30 days per unit",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Mosaic Fertilizer LLC Louisiana operations",li:null}],
+  source:"The Advocate 2019 + Argus Mar 2025 + EPA",dkl_url:null,ownership_flag:"cross"},
+
+  // --- USA: NUTRIEN ---
+  {id:49,operator_dkl:"Nutrien - Aurora NC",operator_current:"Nutrien Ltd.",parent:"Nutrien Ltd. (TSX/NYSE: NTR)",
+  site:"Aurora Phosphate Complex",city:"Aurora",state:"North Carolina",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in phosphoric acid and fertiliser production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"One of Nutrien's two remaining US phosphate plants (Redwater AB closed 2019). With both plants, Nutrien uses available capacity flexibility. Aurora mines have high-quality phosphate rock.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Nutrien Aurora NC operations",li:null}],
+  source:"Nutrien press release May 2019",dkl_url:null,ownership_flag:"cross"},
+
+  {id:50,operator_dkl:"Nutrien - White Springs FL",operator_current:"Nutrien Ltd.",parent:"Nutrien Ltd. (TSX/NYSE: NTR)",
+  site:"White Springs Phosphate Plant",city:"White Springs",state:"Florida",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid used in phosphoric acid and fertiliser production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"One of Nutrien's two remaining US phosphate plants. Produces diverse mix of phosphate products including solid/liquid fertilisers, feed and industrial acids.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Nutrien White Springs FL operations",li:null}],
+  source:"Nutrien press release May 2019",dkl_url:null,ownership_flag:"cross"},
+
+  // --- USA: CF INDUSTRIES ---
+  {id:51,operator_dkl:"CF Industries - Donaldsonville LA",operator_current:"CF Industries Holdings Inc.",parent:"CF Industries Holdings Inc. (NYSE: CF)",
+  site:"Donaldsonville Nitrogen Complex",city:"Donaldsonville",state:"Louisiana",country:"USA",region:"North America",
+  type:"Sulphur Burning",technology:"Sulphur Burning SAP (sulphuric acid for internal nitric acid production), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"World's largest ammonia complex; 6 ammonia + 5 urea + 4 nitric acid + 3 UAN plants",year_built:null,status:"Active",
+  status_notes:"World's largest and most flexible ammonia complex. H2SO4 produced for nitric acid/UAN process. CCS project with ExxonMobil started 2025. ~8M MTPA nitrogen products. Blue Point mega-project (JV with JERA, FID Apr 2025, start ~2029) nearby.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years per unit (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"CEO",name:"Tony Will (CF Industries President & CEO)",li:null},{role:"Procurement",name:"Via CF Industries Donaldsonville complex",li:null}],
+  source:"CF Industries website + press releases",dkl_url:null,ownership_flag:"cross"},
+
+  {id:52,operator_dkl:"CF Industries - Yazoo City MS",operator_current:"CF Industries Holdings Inc.",parent:"CF Industries Holdings Inc. (NYSE: CF)",
+  site:"Yazoo City Nitrogen Complex",city:"Yazoo City",state:"Mississippi",country:"USA",region:"North America",
+  type:"Sulphur Burning",technology:"Sulphur Burning SAP for nitric acid/ammonium nitrate production, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"UAN + ammonium nitrate production",year_built:null,status:"Active",
+  status_notes:"Ammonia leak Nov 5 2025 (MEMA responded, evacuation order). CCS project with ExxonMobil ~USD100M, starts 2028. $100M CO2 dehydration/compression unit being built.",
+  last_shutdown:"Nov 2025 (ammonia leak incident)",next_shutdown:"Unknown",shutdown_freq:"~2-3 years per unit (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"CEO",name:"Tony Will (CF Industries President & CEO)",li:null}],
+  source:"CF Industries + WJTV Nov 2025",dkl_url:null,ownership_flag:"cross"},
+
+  // --- MEXICO ---
+  {id:53,operator_dkl:"Mexicana de Cobre S.A. (La Caridad)",operator_current:"Industrial Minera Mexico S.A. de C.V.",parent:"Grupo Mexico S.A.B. de C.V.",
+  site:"La Caridad Copper Smelter",city:"Nacozari de Garcia",state:"Sonora",country:"Mexico",region:"North America",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (1986), Peirce-Smith Converters, DCDA",
+  cap_mtpd:2500,cap_mtpa:null,cap_note:"2,500 MTPD",year_built:1986,status:"Active",
+  status_notes:"One of Mexico's two primary copper smelters. IMMSA (Grupo Mexico).",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via IMMSA Sonora operations",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Mexicana%20de%20Cobre.htm",ownership_flag:"cross"},
+
+  {id:54,operator_dkl:"Met-Mex Penoles",operator_current:"Met-Mex Penoles S.A. de C.V.",parent:"Industrias Penoles SAB de CV",
+  site:"Torreon Metallurgical Complex",city:"Torreon",state:"Coahuila",country:"Mexico",region:"North America",
+  type:"Metallurgical",technology:"ISF, FBR Zinc Roaster, Lead Blast Furnace, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"World's largest single-site silver producer",year_built:1968,status:"Active",
+  status_notes:"World's largest single-site silver producer. Zn, Pb, Au, Ag recovery.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Penoles Torreon operations",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Met-Mex%20Penoles.htm",ownership_flag:"cross"},
+
+  // ===================== SOUTH AMERICA =====================
+  // --- BRAZIL ---
+  {id:55,operator_dkl:"Mosaic Fertilizantes - Araxa",operator_current:"Mosaic Fertilizantes do Brasil Ltda",parent:"The Mosaic Company (NYSE: MOS)",
+  site:"Araxa Phosphate / Fertiliser Complex",city:"Araxa",state:"Minas Gerais",country:"Brazil",region:"South America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; acid in phosphate rock acidulation",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Major phosphate mining and fertiliser complex. Vale Fertilizantes acquisition 2018 added 5 Brazilian phosphate mines + 4 chemical plants.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Mosaic Fertilizantes Brazil",li:null}],
+  source:"Cross-referenced (Mosaic operations)",dkl_url:null,ownership_flag:"cross"},
+
+  {id:56,operator_dkl:"Yara - Cubatao",operator_current:"Yara Brasil Fertilizantes SA",parent:"Yara International ASA",
+  site:"Cubatao Fertiliser Complex",city:"Cubatao",state:"Sao Paulo",country:"Brazil",region:"South America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Major fertiliser production complex in industrial port city of Cubatao.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Yara Brasil operations",li:null}],
+  source:"Cross-referenced",dkl_url:null,ownership_flag:"cross"},
+
+  {id:57,operator_dkl:"Caraiba Metais - Dias D'Avila",operator_current:"Paranapanema S.A. / Caraiba Metais",parent:"Paranapanema S.A. (B3 listed)",
+  site:"Camacari Copper Smelter",city:"Dias D'Avila",state:"Bahia",country:"Brazil",region:"South America",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (1982), Peirce-Smith Converters, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1982,status:"Active",
+  status_notes:"Only copper smelter in Brazil.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Not publicly listed",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Caraiba%20Metais%20-%20Dias%20D'Avila.htm",ownership_flag:"cross"},
+
+  {id:58,operator_dkl:"Votorantim Metais - Tres Marias",operator_current:"Nexa Resources S.A.",parent:"Nexa Resources (Votorantim Metais)",
+  site:"Tres Marias Zinc Smelter",city:"Tres Marias",state:"Minas Gerais",country:"Brazil",region:"South America",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:180000,cap_note:"~180,000 MTPA zinc",year_built:1969,status:"Active",
+  status_notes:"Votorantim Metais rebranded to Nexa Resources 2017. NYSE listed.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Nexa Resources Brazil",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Votorantim%20Metais%20-%20Três%20Marias.htm",ownership_flag:"cross"},
+
+  // --- CHILE ---
+  {id:59,operator_dkl:"Codelco Norte - Chuquicamata",operator_current:"Codelco (Corporacion Nacional del Cobre de Chile)",parent:"Chilean State",
+  site:"Chuquicamata Copper Smelter",city:"Calama",state:"Antofagasta Region",country:"Chile",region:"South America",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (1988), Peirce-Smith Converters, DCDA",
+  cap_mtpd:2062,cap_mtpa:null,cap_note:"2,062 MTPD",year_built:1988,status:"Active",
+  status_notes:"World's largest open-pit copper mine. State-owned Codelco. Radomiro Tomic is now Codelco's most productive mine (2025).",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Codelco Norte operations - Calama",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Codelco%20Norte%20-%20Chile.htm",ownership_flag:"cross"},
+
+  {id:60,operator_dkl:"Codelco - El Teniente",operator_current:"Codelco (El Teniente Division)",parent:"Chilean State",
+  site:"El Teniente Smelter (Caletones)",city:"Machali (Caletones)",state:"O'Higgins Region",country:"Chile",region:"South America",
+  type:"Metallurgical",technology:"Teniente Converter, Electric Furnace, Hugo Petersen SAP (single absorption)",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"~450,000 MTPA Cu production (El Teniente division)",year_built:null,status:"Active",
+  status_notes:"World's largest underground copper mine. Ventanas smelter (same division) closed Jun 2023 after pollution controversy.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Codelco El Teniente operations",li:null}],
+  source:"DKL/Wikipedia",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Codelco%20-%20El%20Teniente.htm",ownership_flag:"cross"},
+
+  {id:61,operator_dkl:"Anglo American - Chagres",operator_current:"Anglo American Chagres S.A.",parent:"Anglo American plc",
+  site:"Chagres Copper Smelter",city:"Chagres (Catemu)",state:"Valparaiso Region",country:"Chile",region:"South America",
+  type:"Metallurgical",technology:"Outotec Flash Furnace (1995), Peirce-Smith Converters, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1995,status:"Active",
+  status_notes:"Anglo American acquired from Disputada de Las Condes 2002. Central Chile.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Anglo American Chile - Santiago",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Anglo%20American%20-%20Chagres.htm",ownership_flag:"cross"},
+
+  {id:62,operator_dkl:"Glencore - Altonorte",operator_current:"Altonorte Gestion SPA",parent:"Glencore plc",
+  site:"Altonorte Copper Smelter",city:"Antofagasta",state:"Antofagasta Region",country:"Chile",region:"South America",
+  type:"Metallurgical",technology:"ISAsmelt, Peirce-Smith Converters, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"~300,000 MTPA Cu anode capacity",year_built:1999,status:"Active",
+  status_notes:"Glencore's Chilean copper smelter. ISAsmelt technology at Antofagasta. FURNACE OUTAGE April 2025 (~1 month suspension). BC Insight Dec 2025: Altonorte + Potrerillos outages expected to reduce 2025 traded acid supply by ~0.3Mt combined. Restarted post-outage. Post-incident inspection and repair contracts are high-probability near-term BD opportunity.",
+  last_shutdown:"April 2025 (furnace outage, ~1 month unplanned)",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"now",
+  contacts:[{role:"Site Mgr",name:"Via Glencore Chile - Antofagasta",li:null}],
+  source:"Cross-referenced + BC Insight Dec 2025",dkl_url:null,ownership_flag:"cross"},
+
+  // --- PERU ---
+  {id:63,operator_dkl:"Southern Copper - Ilo",operator_current:"Southern Copper Corporation",parent:"Grupo Mexico S.A.B. de C.V.",
+  site:"Ilo Copper Smelter & Refinery",city:"Ilo",state:"Moquegua Region",country:"Peru",region:"South America",
+  type:"Metallurgical",technology:"Outotec Flash Smelting, Peirce-Smith Converters, DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1960,status:"Active",
+  status_notes:"SPCC majority-owned by Grupo Mexico. Major SAP at Ilo port.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Site Mgr",name:"Via Southern Copper Ilo operations",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Southern%20Copper%20-%20Ilo.htm",ownership_flag:"cross"},
+
+  {id:64,operator_dkl:"Cajamarquilla Refinery",operator_current:"Cajamarquilla Zinc Refinery (Nexa Resources)",parent:"Nexa Resources S.A.",
+  site:"Cajamarquilla Zinc Refinery",city:"Cajamarquilla (Lima)",state:"Lima Region",country:"Peru",region:"South America",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:320000,cap_note:"~320,000 MTPA zinc - largest zinc refinery in Americas",year_built:1981,status:"Active",
+  status_notes:"Largest zinc refinery in the Americas.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Nexa Resources Peru",li:null}],
+  source:"DKL",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Cajamarquilla%20Refinery.htm",ownership_flag:"cross"},
+
+  // ===================== NEW EUROPE ADDITIONS =====================
+  // --- BELGIUM (Prayon) ---
+  {id:65,operator_dkl:"Prayon - Engis",operator_current:"Prayon SA",parent:"OCP Group (Morocco, 50%) + Wallonie Entreprendre (50%)",
+  site:"Engis Phosphoric Acid & H2SO4 Complex",city:"Engis",state:"Liege Province",country:"Belgium",region:"Europe",
+  type:"Fertiliser",technology:"Sulphur Burning (2 SAPs on site), DCDA; Central-Prayon wet process phosphoric acid",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"2 SAP trains on site; produces H2SO4 as input to wet-process H3PO4",year_built:1888,status:"Active",
+  status_notes:"Headquarters and main production site. Founded 1882, SAP since 1888. Two sulphuric acid production units integrated with phosphoric acid plant. CEO: Geoffrey Close. New electronics-grade H3PO4 expansion unit planned at Engis, operational 2028. Prayon Technologies licensing division also based here.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"CEO",name:"Geoffrey Close (Prayon CEO)",li:null},{role:"Procurement",name:"Via Prayon SA procurement Engis",li:null}],
+  source:"Prayon website + First Phosphate Dec 2024",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Prayon%20-%20Engis.htm",ownership_flag:"cross"},
+
+  {id:66,operator_dkl:"Prayon - Puurs",operator_current:"Prayon SA (Puurs site)",parent:"OCP Group (Morocco, 50%) + Wallonie Entreprendre (50%)",
+  site:"Puurs Production Site",city:"Puurs",state:"Antwerp Province",country:"Belgium",region:"Europe",
+  type:"Fertiliser",technology:"Phosphate salts + H2SO4 ancillary processing; wet-process phosphoric acid products",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Prayon's second Belgian production site near Antwerp. Active hiring for senior project engineers and capex buyers (LinkedIn 2026). Phosphate salts, masterbatches and specialty phosphate chemistry. H2SO4 consumed on site.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Prayon SA Puurs site management",li:null}],
+  source:"Prayon LinkedIn + website 2026",dkl_url:null,ownership_flag:"cross"},
+
+  // --- FRANCE (Prayon) ---
+  {id:67,operator_dkl:"Prayon - Les Roches (Europhos)",operator_current:"Prayon SA (Les Roches site)",parent:"OCP Group (Morocco, 50%) + Wallonie Entreprendre (50%)",
+  site:"Les Roches-de-Condrieu Phosphate Plant",city:"Les Roches-de-Condrieu",state:"Isere",country:"France",region:"Europe",
+  type:"Fertiliser",technology:"Phosphate salts production (SHMP, wet-process acid); H2SO4 consumed on site",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Former Europhos site integrated into Prayon in 2003. SHMP (sodium hexametaphosphate) production. H2SO4 consumed in process. Near Lyon.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Prayon SA (site under Prayon France operations)",li:null}],
+  source:"Prayon history + LinkedIn",dkl_url:null,ownership_flag:"cross"},
+
+  // --- SWITZERLAND (Prayon) ---
+  {id:68,operator_dkl:"Prayon - Bex",operator_current:"Prayon SA (Bex site)",parent:"OCP Group (Morocco, 50%) + Wallonie Entreprendre (50%)",
+  site:"Bex Electronics-Grade Phosphoric Acid Plant",city:"Bex",state:"Vaud",country:"Switzerland",region:"Europe",
+  type:"Fertiliser",technology:"Electronics-grade / UltraPure phosphoric acid; H2SO4 consumed in process",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown; new doubling expansion operational 2028",year_built:null,status:"Active",
+  status_notes:"Acquired January 2023. European leader in electronics-grade H3PO4. New expansion unit to double capacity, operational 2028, to serve semiconductor industry in Europe + North America. H2SO4 is key input. CEO: Geoffrey Close.",
+  last_shutdown:"N/A (new acquisition)",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"soon",
+  contacts:[{role:"CEO",name:"Geoffrey Close (Prayon CEO)",li:null}],
+  source:"Prayon press release + LinkedIn",dkl_url:null,ownership_flag:"cross"},
+
+  // --- FINLAND (Kemira Pori) ---
+  {id:69,operator_dkl:"Kemira Oyj - Pori",operator_current:"Kemira Oyj",parent:"Kemira Oyj (Nasdaq Helsinki: KEMIRA; Finnish State minority)",
+  site:"Pori Chemical Complex (Vuorikemia / Kemira)",city:"Pori",state:"Satakunta",country:"Finland",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA; TiO2 sulphate process acid production + merchant acid",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:1957,status:"Active",
+  status_notes:"Original titanium dioxide plant (Vuorikemia, 1957) that pioneered Kemira's chemical processing. Pori also hosts a power company (Pohjolan Voima) majority owned by Kemira. Kemira refocused in 2008 on water chemistry and divested Oil & Gas 2024 but retains Pori. SAP on site as part of TiO2 sulphate process.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Kemira Oyj Helsinki HQ",li:null}],
+  source:"DKL + Kemira history + 2024 Annual Report",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Kemira-Oyj-Pori.htm",ownership_flag:"cross"},
+
+  // --- POLAND (additional) ---
+  {id:70,operator_dkl:"Fosfory - Gdansk",operator_current:"Grupa Azoty Zaklady Fosforowe Gdansk Sp. z o.o.",parent:"Grupa Azoty SA (Polish State majority) via Azoty Pulawy",
+  site:"Gdansk Phosphate Fertiliser Complex",city:"Gdansk",state:"Pomeranian",country:"Poland",region:"Europe",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; H2SO4 for phosphoric acid and fertiliser production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Part of Grupa Azoty group (via Azoty Pulawy, which acquired 89.46% in April 2011). Port-based fertiliser and phosphoric acid complex at Port of Gdansk (Chemikow Quay). SAP compliant with BAT since 2003 alkaline absorption upgrade.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Grupa Azoty Gdansk / Pulawy",li:null}],
+  source:"DKL + Fosfory website + Wikipedia",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Fosfory%20-%20Gdansk.htm",ownership_flag:"cross"},
+
+  {id:71,operator_dkl:"Fosfan - Szczecin",operator_current:"Fosfan SA",parent:"Fosfan SA (private Polish, part-owned Fabryka Zieleni SA)",
+  site:"Szczecin Fertiliser Plant",city:"Szczecin",state:"West Pomeranian",country:"Poland",region:"Europe",
+  type:"Fertiliser",technology:"Sulphur Burning / H2SO4 use; compound fertiliser production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Compound agricultural and gardening fertiliser manufacturer at Szczecin. ISO 9001/14001 certified. Uses H2SO4 in superphosphate production. Innovative acid unloading system installed. 65+ years of operation.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2-3 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Fosfan SA Szczecin management",li:null}],
+  source:"DKL + Fosfan website 2024",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Fosfan-Szczecin.htm",ownership_flag:"manual"},
+
+  // --- SLOVENIA ---
+  {id:72,operator_dkl:"Cinkarna",operator_current:"Cinkarna Celje d.d.",parent:"Cinkarna Celje d.d. (Ljubljana Stock Exchange: CICG)",
+  site:"Celje TiO2 & Sulphuric Acid Plant",city:"Celje",state:"Savinja Region",country:"Slovenia",region:"Europe",
+  type:"Sulphur Burning",technology:"Sulphur Burning, DCDA; TiO2 sulphate process produces H2SO4 as coproduct",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown; ~EUR200M turnover annually",year_built:1873,status:"Active",
+  status_notes:"150+ year old company. TiO2 is main product (80%+ revenue). H2SO4 produced via sulphate process as coproduct and sold as merchant acid (diluted and concentrated). EUR17.2M CAPEX planned 2026 including steam turbine and battery storage. Net profit EUR16M Q1-Q3 2025 (+11.7% YoY). CEO: Ales Skok.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"CEO",name:"Ales Skok (President Management Board)",li:null},{role:"CTO",name:"Nikolaja Podgorsek Selic (Member Board, CTO)",li:null}],
+  source:"DKL + Cinkarna Q3 2025 report + website",dkl_url:null,ownership_flag:"cross"},
+
+  // ===================== NEW NORTH AMERICA ADDITIONS =====================
+  // --- USA: NUTRIEN ---
+  {id:73,operator_dkl:"Nutrien - Aurora NC",operator_current:"Nutrien Ltd.",parent:"Nutrien Ltd. (TSX/NYSE: NTR)",
+  site:"Aurora Phosphate Complex",city:"Aurora",state:"North Carolina",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; H2SO4 for wet-process phosphoric acid + fertiliser",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"~5.4M MTPA ore mined; produces phosphoric acid, di-ammonium phosphate, liquid fertilisers, feed + industrial acids",year_built:null,status:"Active",
+  status_notes:"One of Nutrien's two remaining US phosphate plants (Redwater AB repurposed 2019). Maintenance turnarounds completed at both Aurora and White Springs in 2023 (Nutrien Annual Report 2024). Production improved in Q1 2024 due to improved reliability at Aurora. Nutrien team met by APMS representative — WARM CONTACT.",
+  last_shutdown:"2023 (maintenance turnaround confirmed)",next_shutdown:"~2026 (est., ~3-year cycle)",shutdown_freq:"~2-3 years",shutdown_dur:"~3-4 weeks",bd_window:"now",
+  contacts:[{role:"Warm Contact",name:"Nutrien team met at industry event (confirm name/role internally)",li:null},{role:"Procurement",name:"Via Nutrien Aurora NC operations",li:null}],
+  source:"Nutrien Annual Report 2024 + meeting note",dkl_url:null,ownership_flag:"cross"},
+
+  {id:74,operator_dkl:"Nutrien - White Springs FL",operator_current:"Nutrien Ltd.",parent:"Nutrien Ltd. (TSX/NYSE: NTR)",
+  site:"White Springs Phosphate Plant",city:"White Springs",state:"Florida",country:"USA",region:"North America",
+  type:"Fertiliser",technology:"Sulphur Burning, DCDA; H2SO4 for wet-process phosphoric acid + fertiliser",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"~2.0M MTPA ore; solid/liquid fertilisers, feed + purified/industrial acids",year_built:null,status:"Active",
+  status_notes:"Smaller of Nutrien's two US phosphate plants. USD233M non-cash impairment Q2 2023 (PPE) due to lower margin forecasts - indicates asset age and capital expenditure pressure. Maintenance turnaround completed 2023 alongside Aurora. Nutrien team met by APMS representative.",
+  last_shutdown:"2023 (maintenance turnaround confirmed)",next_shutdown:"~2026 (est., ~3-year cycle)",shutdown_freq:"~2-3 years",shutdown_dur:"~3-4 weeks",bd_window:"now",
+  contacts:[{role:"Warm Contact",name:"Nutrien team met at industry event (confirm name/role internally)",li:null},{role:"Procurement",name:"Via Nutrien White Springs FL operations",li:null}],
+  source:"Nutrien Annual Report 2024 + meeting note",dkl_url:null,ownership_flag:"cross"},
+
+  // ===================== NEW SOUTH AMERICA ADDITIONS =====================
+  // --- CHILE (Codelco Potrerillos - major BD story) ---
+  {id:75,operator_dkl:"Codelco - Potrerillos (El Salvador Division)",operator_current:"Codelco (El Salvador Division)",parent:"Chilean State",
+  site:"Potrerillos Copper Smelter",city:"Potrerillos",state:"Atacama Region",country:"Chile",region:"South America",
+  type:"Metallurgical",technology:"Peirce-Smith Converters, Reverberatory Furnace, DCDA (upgraded 2014-2018 via EUR64M Outotec contract)",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown - high-cost smelter; double global average running costs",year_built:1926,status:"C&M",
+  status_notes:"STACK COLLAPSED JUNE 2025 - OFFLINE SINCE. Potrerillos halted operations June 2025 after chimney collapse; had not restarted as of late 2025. Closure debate intensifying internally at Codelco (high cost, old age). Ventanas closed 2023 - this is Codelco's 3rd smelter under pressure. BC Insight Dec 2025: expected to reduce 2025 supply by ~0.3Mt acid. Watch for restart/closure decision 2026.",
+  last_shutdown:"June 2025 (stack collapse - UNPLANNED)",next_shutdown:"Restart uncertain / possible permanent closure",shutdown_freq:"N/A (incident)",shutdown_dur:"Ongoing",bd_window:"now",
+  contacts:[{role:"Procurement",name:"Via Codelco El Salvador Division / Codelco HQ Santiago",li:null}],
+  source:"BC Insight Dec 2025 + Mining Weekly Jul 2025 + BNamericas",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/Codelco%20-%20Potrerillos.htm",ownership_flag:"cross"},
+
+  // --- CHILE (Glencore Altonorte - furnace outage 2025) ---
+  // Note: Altonorte already in matrix as id:62, update status notes rather than add duplicate
+
+  // --- PERU (Southern Copper Toquepala) ---
+  {id:76,operator_dkl:"Southern Copper - Toquepala",operator_current:"Southern Copper Corporation",parent:"Grupo Mexico S.A.B. de C.V.",
+  site:"Toquepala Concentrator & SX-EW",city:"Toquepala",state:"Tacna Region",country:"Peru",region:"South America",
+  type:"Metallurgical",technology:"SX-EW (H2SO4 consumer for copper leaching), plus concentrate production",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown - large acid consumption for SX-EW leaching",year_built:1960,status:"Active",
+  status_notes:"Toquepala expanded with new concentrator 2018 (+100k MTPA Cu). Significant H2SO4 consumption for SX-EW leaching operations. Acid largely sourced from Southern Copper Ilo smelter (in matrix). On-site acid storage tanks.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via Southern Copper Toquepala / Cuajone operations",li:null}],
+  source:"Cross-referenced (Southern Copper operations)",dkl_url:null,ownership_flag:"cross"},
+
+  // --- ARGENTINA ---
+  {id:77,operator_dkl:"AR Zinc",operator_current:"AR Zinc SA",parent:"AR Zinc SA (private Argentine)",
+  site:"Rosario Zinc Smelter",city:"Rosario",state:"Santa Fe Province",country:"Argentina",region:"South America",
+  type:"Metallurgical",technology:"Fluid Bed Roaster (FBR), DCDA",
+  cap_mtpd:null,cap_mtpa:null,cap_note:"Unknown",year_built:null,status:"Active",
+  status_notes:"Argentina's primary zinc smelter. FBR roaster with H2SO4 production. Listed on DKL index.",
+  last_shutdown:"Unknown",next_shutdown:"Unknown",shutdown_freq:"~2 years (est.)",shutdown_dur:"Unknown",bd_window:"monitor",
+  contacts:[{role:"Procurement",name:"Via AR Zinc SA Rosario operations",li:null}],
+  source:"DKL index",dkl_url:"http://www.sulphuric-acid.com/sulphuric-acid-on-the-web/acid%20plants/AR-Zinc.htm",ownership_flag:"manual"}
+];
+
+const COORDS = {
+  1: [48.15, 16.65],
+  2: [51.2, 4.34],
+  3: [51.15, 5.12],
+  4: [42.7, 24.18],
+  5: [61.31, 22.15],
+  6: [63.84, 23.13],
+  7: [63.07, 27.66],
+  8: [50.37, 3.08],
+  9: [45.53, 4.81],
+  10: [53.55, 9.97],
+  11: [51.65, 7.52],
+  12: [49.48, 8.44],
+  13: [39.21, 8.37],
+  14: [51.27, 5.58],
+  15: [60.07, 6.55],
+  16: [58.14, 7.97],
+  17: [51.65, 16.08],
+  18: [51.65, 16.08],
+  19: [51.21, 16.16],
+  20: [53.55, 14.57],
+  21: [51.42, 21.97],
+  22: [37.27, -6.95],
+  23: [43.56, -5.98],
+  24: [37.6, -0.98],
+  25: [64.67, 21.23],
+  26: [46.47, -81.06],
+  27: [46.58, -80.8],
+  28: [49.1, -117.71],
+  29: [45.25, -74.13],
+  30: [29.95, -94.15],
+  31: [32.51, -93.75],
+  32: [37.92, -122.34],
+  33: [40.83, -84.15],
+  34: [48.51, -122.61],
+  35: [43.02, -108.38],
+  36: [30.44, -91.19],
+  37: [29.93, -90.15],
+  38: [29.74, -94.98],
+  39: [29.76, -95.37],
+  40: [41.58, -87.5],
+  41: [37.99, -122.12],
+  42: [33.86, -118.26],
+  43: [40.7, -112.05],
+  44: [32.9, -110.78],
+  45: [27.89, -81.98],
+  46: [27.9, -81.84],
+  47: [27.83, -82.34],
+  48: [30.02, -90.78],
+  49: [35.5, -76.8],
+  50: [30.33, -82.75],
+  51: [30.03, -90.92],
+  52: [32.85, -90.47],
+  53: [30.38, -109.32],
+  54: [25.55, -103.45],
+  55: [-19.59, -46.94],
+  56: [-23.88, -46.43],
+  57: [-12.61, -38.32],
+  58: [-18.21, -45.24],
+  59: [-22.31, -68.92],
+  60: [-34.28, -70.58],
+  61: [-32.77, -70.72],
+  62: [-23.65, -70.4],
+  63: [-17.64, -71.34],
+  64: [-11.98, -76.86],
+  65: [50.57, 5.47],
+  66: [51.07, 4.35],
+  67: [45.44, 4.82],
+  68: [46.26, 7.00],
+  69: [61.48, 21.80],
+  70: [54.35, 18.65],
+  71: [53.43, 14.55],
+  72: [46.23, 15.27],
+  73: [35.50, -76.80],
+  74: [30.33, -82.75],
+  75: [-26.48, -69.65],
+  76: [-17.20, -70.10],
+  77: [-32.94, -60.65],
+};
+
+// ── BD HELPERS ────────────────────────────────────────────────────────────────
+function bdClass(w) {
+  if (w === "now")    return "bd-now";
+  if (w === "soon")   return "bd-soon";
+  if (w === "radar")  return "bd-radar";
+  return "bd-monitor";
+}
+function bdLabel(w) {
+  if (w === "now")    return "● Reach Out Now";
+  if (w === "soon")   return "● Engage Soon";
+  if (w === "radar")  return "● On Radar";
+  return "○ Monitor";
+}
+function sClass(s) {
+  if (s === "Active")  return "s-active";
+  if (s === "C&M")     return "s-cm";
+  if (s === "Shutdown") return "s-shutdown";
+  return "s-unknown";
+}
+function tClass(t) {
+  if (t === "Metallurgical")   return "t-met";
+  if (t === "Sulphur Burning") return "t-sb";
+  if (t === "Regeneration")    return "t-regen";
+  return "t-other";
+}
+function capHTML(p) {
+  if (p.cap_note && p.cap_note !== "Unknown") return "<span class='cap-val'>" + p.cap_note + "</span>";
+  var out = [];
+  if (p.cap_mtpd) out.push("<span class='cap-val'>" + p.cap_mtpd.toLocaleString() + "</span><span class='cap-unit'> MTPD</span>");
+  if (p.cap_mtpa) out.push("<span class='cap-val'>" + Math.round(p.cap_mtpa/1000) + "k</span><span class='cap-unit'> MTPA</span>");
+  return out.length ? out.join("<br>") : "<span class='cap-unk'>Unknown</span>";
+}
+function ownHTML(p) {
+  if (p.ownership_flag === "manual") return "<div class='own-flag own-manual'>⚠ VERIFY ownership</div>";
+  if (p.ownership_flag === "cross")  return "<div class='own-flag own-cross'>✓ Cross-referenced</div>";
+  return "";
+}
+function techHTML(tech) {
+  if (!tech) return "";
+  var tags = tech.split(","), out = "";
+  for (var i = 0; i < tags.length; i++) out += "<span class='tech-tag'>" + tags[i].trim() + "</span>";
+  return out;
+}
+function shutdownHTML(p) {
+  var h = "<div class='sd-block'>";
+  h += "<div class='sd-row'><span class='sd-label'>Last</span><span class='sd-val'>" + (p.last_shutdown || "—") + "</span></div>";
+  var nc = (p.bd_window === "now") ? " highlight" : (p.bd_window === "soon") ? " soon" : "";
+  h += "<div class='sd-row'><span class='sd-label'>Next</span><span class='sd-val" + nc + "'>" + (p.next_shutdown || "Unknown") + "</span></div>";
+  h += "<div class='sd-row'><span class='sd-label'>Freq</span><span class='sd-val'>" + (p.shutdown_freq || "Unknown") + "</span></div>";
+  if (p.shutdown_dur) h += "<div class='sd-row'><span class='sd-label'>Duration</span><span class='sd-val'>" + p.shutdown_dur + "</span></div>";
+  h += "</div>";
+  return h;
+}
+function contactsHTML(p) {
+  if (!p.contacts || !p.contacts.length) return "<span class='no-contact'>Not listed</span>";
+  var h = "<div class='contact-block'>";
+  for (var i = 0; i < p.contacts.length; i++) {
+    var c = p.contacts[i];
+    if (!c.name || c.name.indexOf("Via ") === 0 || c.name === "Not publicly listed" || c.name === "N/A (closed)") {
+      h += "<div class='contact'><span class='contact-role'>" + c.role + "</span><span class='no-contact'>" + (c.name||"Not listed") + "</span></div>";
+    } else {
+      h += "<div class='contact'><span class='contact-role'>" + c.role + "</span><span class='contact-name'>" + c.name;
+      if (c.li) h += "<a class='contact-li' href='" + c.li + "' target='_blank' rel='noopener'> [Li]</a>";
+      h += "</span></div>";
+    }
+  }
+  h += "</div>";
+  return h;
+}
+function slugify(s) { return s.replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-|-$/g,""); }
+
+// ── TABLE STATE ───────────────────────────────────────────────────────────────
+var hiddenCountries = {}, sortCol = null, sortDir = 1;
+var visibleData = PLANTS.slice(), activeBDFilter = null;
+
+function toggleBDFilter(w) {
+  activeBDFilter = (activeBDFilter === w) ? null : w;
+  var chips = ["now","soon","radar","monitor"];
+  for (var i = 0; i < chips.length; i++) {
+    var el = document.getElementById("chip-" + chips[i]);
+    if (el) el.className = "bd-chip bd-" + chips[i] + (activeBDFilter && activeBDFilter !== chips[i] ? " inactive" : "");
+  }
+  document.getElementById("filterBD").value = activeBDFilter || "";
+  applyFilters();
+}
+
+document.getElementById("matrixBody").addEventListener("click", function(e) {
+  var row = e.target.closest("tr.country-row");
+  if (!row) return;
+  var slug = row.getAttribute("data-slug");
+  if (slug) { hiddenCountries[slug] = !hiddenCountries[slug]; render(visibleData); }
+});
+
+function render(data) {
+  var tbody = document.getElementById("matrixBody");
+  var rows = "";
+  var regions = ["Europe","North America","South America"];
+  var rCls = {"Europe":"r-europe","North America":"r-namerica","South America":"r-samerica"};
+  for (var ri = 0; ri < regions.length; ri++) {
+    var region = regions[ri];
+    var plants = [];
+    for (var pi = 0; pi < data.length; pi++) { if (data[pi].region === region) plants.push(data[pi]); }
+    if (!plants.length) continue;
+    rows += "<tr class='region-row " + rCls[region] + "'><td colspan='12'>" + region.toUpperCase() + " — " + plants.length + " plant" + (plants.length !== 1 ? "s" : "") + "</td></tr>";
+    var seen = {}, countries = [];
+    for (var pi2 = 0; pi2 < plants.length; pi2++) { var c = plants[pi2].country; if (!seen[c]) { seen[c]=true; countries.push(c); } }
+    countries.sort();
+    for (var ci = 0; ci < countries.length; ci++) {
+      var country = countries[ci], cp = [], slug = slugify(country);
+      for (var pi3 = 0; pi3 < plants.length; pi3++) { if (plants[pi3].country === country) cp.push(plants[pi3]); }
+      rows += "<tr class='country-row' data-slug='" + slug + "'><td colspan='12'>" + country + "<span class='ccount'>" + cp.length + " plant" + (cp.length!==1?"s":"") + "</span>" + (hiddenCountries[slug] ? " ►" : " ▼") + "</td></tr>";
+      if (hiddenCountries[slug]) continue;
+      for (var di = 0; di < cp.length; di++) {
+        var p = cp[di], bdc = bdClass(p.bd_window);
+        var dklCell = p.dkl_url ? "<a class='dkl-link' href='" + p.dkl_url + "' target='_blank' rel='noopener'>DKL ↗</a>" : "<span style='color:var(--border2)'>—</span>";
+        var dklName = (p.operator_dkl !== p.operator_current) ? "<div class='td-dkl'>DKL: " + p.operator_dkl + "</div>" : "";
+        rows += "<tr class='data-row " + bdc + "-row'>"
+          + "<td class='td-id'>" + p.id + "</td>"
+          + "<td><span class='bd-badge " + bdc + "'>" + bdLabel(p.bd_window) + "</span></td>"
+          + "<td><div class='td-operator'>" + p.operator_current + "</div>" + dklName + "<div class='td-parent'>" + p.parent + "</div>" + ownHTML(p) + "</td>"
+          + "<td>" + (p.site||"—") + "</td>"
+          + "<td><div class='td-city'>" + p.city + "</div><div class='td-state'>" + p.state + "</div></td>"
+          + "<td><span class='badge " + tClass(p.type) + "'>" + p.type + "</span></td>"
+          + "<td>" + techHTML(p.technology) + "</td>"
+          + "<td class='td-cap'>" + capHTML(p) + "</td>"
+          + "<td><span class='badge " + sClass(p.status) + "'>" + p.status + "</span></td>"
+          + "<td>" + shutdownHTML(p) + "</td>"
+          + "<td>" + contactsHTML(p) + "</td>"
+          + "<td>" + dklCell + "</td>"
+          + "</tr>";
+      }
+    }
+  }
+  if (!rows) rows = "<tr class='empty-row'><td colspan='12'>No plants match current filters.</td></tr>";
+  tbody.innerHTML = rows;
+  updateStats(data);
+}
+
+function updateStats(data) {
+  var tot=0,nowC=0,soonC=0,radarC=0,eu=0,na=0,sa=0;
+  for (var i=0;i<data.length;i++) {
+    var p=data[i]; tot++;
+    if(p.bd_window==="now")nowC++; if(p.bd_window==="soon")soonC++; if(p.bd_window==="radar")radarC++;
+    if(p.region==="Europe")eu++; if(p.region==="North America")na++; if(p.region==="South America")sa++;
+  }
+  document.getElementById("totalCount").textContent=tot;
+  document.getElementById("nowCount").textContent=nowC;
+  document.getElementById("soonCount").textContent=soonC;
+  document.getElementById("radarCount").textContent=radarC;
+  document.getElementById("euCount").textContent=eu;
+  document.getElementById("naCount").textContent=na;
+  document.getElementById("saCount").textContent=sa;
+}
+
+function applyFilters() {
+  var bd=document.getElementById("filterBD").value;
+  var region=document.getElementById("filterRegion").value;
+  var type=document.getElementById("filterType").value;
+  var status=document.getElementById("filterStatus").value;
+  var search=document.getElementById("searchBox").value.toLowerCase();
+  activeBDFilter = bd || null;
+  visibleData = [];
+  for (var i=0;i<PLANTS.length;i++) {
+    var p=PLANTS[i];
+    if(bd && p.bd_window!==bd) continue;
+    if(region && p.region!==region) continue;
+    if(type && p.type!==type) continue;
+    if(status && p.status!==status) continue;
+    if(search) {
+      var hay=[p.operator_current,p.operator_dkl,p.parent,p.site,p.city,p.country,p.state,p.technology,p.status_notes,p.cap_note,p.next_shutdown].join(" ").toLowerCase();
+      if(p.contacts) for(var ci=0;ci<p.contacts.length;ci++) if(p.contacts[ci].name) hay+=" "+p.contacts[ci].name.toLowerCase();
+      if(hay.indexOf(search)===-1) continue;
+    }
+    visibleData.push(p);
+  }
+  if(sortCol) doSort();
+  render(visibleData);
+}
+
+function clearFilters() {
+  document.getElementById("filterBD").value="";
+  document.getElementById("filterRegion").value="";
+  document.getElementById("filterType").value="";
+  document.getElementById("filterStatus").value="";
+  document.getElementById("searchBox").value="";
+  activeBDFilter=null; sortCol=null; sortDir=1;
+  var chips=["now","soon","radar","monitor"];
+  for(var i=0;i<chips.length;i++){var el=document.getElementById("chip-"+chips[i]);if(el)el.className="bd-chip bd-"+chips[i];}
+  visibleData=PLANTS.slice(); render(visibleData);
+}
+
+function sortBy(col) { if(sortCol===col){sortDir*=-1;}else{sortCol=col;sortDir=1;} doSort(); render(visibleData); }
+function doSort() {
+  visibleData.sort(function(a,b){
+    var va=a[sortCol],vb=b[sortCol];
+    if(va===null||va===undefined)va=-Infinity; if(vb===null||vb===undefined)vb=-Infinity;
+    if(typeof va==="string")va=va.toLowerCase(); if(typeof vb==="string")vb=vb.toLowerCase();
+    return va<vb?-sortDir:va>vb?sortDir:0;
+  });
+}
+
+// ── VIEW SWITCHER ─────────────────────────────────────────────────────────────
+var mapReady = false;
+var theMap = null, theMarkers = [];
+var mapBDFilter = "all", mapRegionFilter = "all";
+
+function switchView(v) {
+  if (v === "map") {
+    document.getElementById("table-view").style.display = "none";
+    document.getElementById("map-view").style.display   = "block";
+    document.getElementById("tab-table").className = "view-tab";
+    document.getElementById("tab-map").className   = "view-tab active";
+    if (!mapReady) {
+      mapReady = true;
+      initMap();
+    } else {
+      theMap.invalidateSize();
+    }
+  } else {
+    document.getElementById("map-view").style.display   = "none";
+    document.getElementById("table-view").style.display = "block";
+    document.getElementById("tab-table").className = "view-tab active";
+    document.getElementById("tab-map").className   = "view-tab";
+  }
+}
+
+// ── MAP INIT ──────────────────────────────────────────────────────────────────
+function markerColor(w) {
+  if (w === "now")   return {fill:"#cc2200", border:"#ff5533"};
+  if (w === "soon")  return {fill:"#774400", border:"#ffaa00"};
+  if (w === "radar") return {fill:"#113311", border:"#44cc44"};
+  return {fill:"#1a1a2a", border:"#6688aa"};
+}
+
+function makePopup(p) {
+  var nc = p.bd_window==="now"?" pu-hot":p.bd_window==="soon"?" pu-warm":p.bd_window==="radar"?" pu-good":"";
+  var h = "<div class='pu-name'>" + p.operator_current + "</div>";
+  h += "<div class='pu-parent'>" + p.parent + "</div>";
+  h += "<div class='pu-row'><span class='pu-lbl'>Site</span><span class='pu-val'>" + (p.site||"—") + "</span></div>";
+  h += "<div class='pu-row'><span class='pu-lbl'>Location</span><span class='pu-val'>" + p.city + ", " + p.country + "</span></div>";
+  h += "<div class='pu-row'><span class='pu-lbl'>Type</span><span class='pu-val'>" + p.type + "</span></div>";
+  h += "<div class='pu-row'><span class='pu-lbl'>Next S/D</span><span class='pu-val" + nc + "'>" + (p.next_shutdown||"Unknown") + "</span></div>";
+  h += "<div class='pu-row'><span class='pu-lbl'>BD</span><span class='pu-val" + nc + "'>" + bdLabel(p.bd_window) + "</span></div>";
+  if (p.status_notes) h += "<div style='font-size:10px;color:var(--text-dim);margin-top:5px;line-height:1.4;'>" + p.status_notes.substring(0,200) + (p.status_notes.length>200?"...":"") + "</div>";
+  return h;
+}
+
+function initMap() {
+  theMap = L.map("mapid", {center:[25,5], zoom:2});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    subdomains: "abcd", maxZoom: 19
+  }).addTo(theMap);
+
+  theMarkers = [];
+  for (var i = 0; i < PLANTS.length; i++) {
+    var p = PLANTS[i];
+    var ll = COORDS[p.id];
+    if (!ll) continue;
+    var col = markerColor(p.bd_window);
+    var icon = L.divIcon({
+      className: "",
+      html: "<div style='width:13px;height:13px;border-radius:50%;background:" + col.fill + ";border:2px solid " + col.border + ";box-shadow:0 0 5px " + col.fill + ";'></div>",
+      iconSize: [13,13], iconAnchor: [6,6], popupAnchor: [0,-8]
+    });
+    var m = L.marker(ll, {icon: icon}).bindPopup(makePopup(p), {maxWidth:300});
+    m._p = p;
+    m.addTo(theMap);
+    theMarkers.push(m);
+  }
+  refreshMapCount();
+}
+
+function applyMapFilters() {
+  if (!theMap) return;
+  for (var i = 0; i < theMarkers.length; i++) {
+    var m = theMarkers[i], p = m._p, show = true;
+    if (mapBDFilter !== "all" && p.bd_window !== mapBDFilter) show = false;
+    if (mapRegionFilter !== "all" && p.region !== mapRegionFilter) show = false;
+    if (show && !theMap.hasLayer(m)) m.addTo(theMap);
+    if (!show && theMap.hasLayer(m)) theMap.removeLayer(m);
+  }
+  refreshMapCount();
+}
+
+function refreshMapCount() {
+  var n = 0;
+  for (var i = 0; i < theMarkers.length; i++) { if (theMap && theMap.hasLayer(theMarkers[i])) n++; }
+  var el = document.getElementById("mapCount");
+  if (el) el.textContent = n + " plant" + (n!==1?"s":"") + " shown";
+}
+
+function mapFilter(w) {
+  mapBDFilter = w;
+  var ids = ["all","now","soon","radar","monitor"];
+  for (var i=0;i<ids.length;i++) { var el=document.getElementById("mf-"+ids[i]); if(el) el.className=ids[i]===w?"btn active":"btn"; }
+  applyMapFilters();
+}
+
+function mapRegion(r) {
+  mapRegionFilter = (mapRegionFilter === r) ? "all" : r;
+  var rmap = {"Europe":"eu","North America":"na","South America":"sa"
+};
+  for (var k in rmap) { var el=document.getElementById("mf-"+rmap[k]); if(el) el.className=mapRegionFilter===k?"btn active":"btn"; }
+  applyMapFilters();
+}
+
+render(PLANTS);
+</script>
+</body>
+</html>
